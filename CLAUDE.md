@@ -34,6 +34,57 @@ You will never edit this. You need to understand it so you query the database co
    - **Buyer Standardization:** Empty/null `buyer` values are rewritten as `"UNASSIGNED"`. You will never see null or empty string for `buyer`.
    - **Stockout Cap:** `stockout_pct = min(1.0, days_out / period)`. Values are guaranteed between 0.0 and 1.0 inclusive, rounded to 4 decimal places.
 
+## 2.5 Read-Only Pipeline Access (Allowed)
+
+While the data pipeline is owned upstream and must not be modified, 
+**read-only inspection is explicitly allowed and encouraged** for 
+development purposes.
+
+### Allowed via Supabase MCP
+
+- Query any table or view to inspect schema, column types, and sample rows
+- Check whether `latest_inventory_snapshot` exists; create it if not 
+  (this is a development setup step, not a pipeline modification)
+- Verify RLS policies on `branch_stock_reports` and 
+  `latest_inventory_snapshot`
+- Generate TypeScript types from the live schema
+- Run `SELECT` queries to verify data shape, row counts, value distributions,
+  or freshness (e.g., `SELECT MAX(report_date)`)
+- Inspect indexes and constraints
+- Check the row count of `latest_inventory_snapshot` to validate 
+  pagination assumptions
+
+### Allowed via n8n (if MCP or API access is available)
+
+- Read workflow definitions to verify the data pipeline matches the 
+  schema and transformation rules documented in this file
+- Check execution history to confirm the most recent successful run
+- Verify the schedule is active and not paused
+- Read node configurations to confirm field mappings (column names, 
+  data types) match what the frontend expects
+
+### Still Prohibited
+
+- **Editing** any n8n workflow node, code, schedule, or credential
+- **Disabling, enabling, duplicating, or deleting** workflows
+- **Modifying** the `branch_stock_reports` schema (columns, types, constraints)
+- **Running** `UPDATE`, `DELETE`, `INSERT`, `DROP`, `ALTER`, or `TRUNCATE` 
+  on `branch_stock_reports`
+- **Modifying** the n8n credentials or OAuth grants
+- **Triggering** workflow runs manually (this could create duplicate or 
+  conflicting data depending on n8n's idempotency setup)
+
+### Rule of Thumb
+
+If the action is `SELECT`, `EXPLAIN`, `SHOW`, or "view config" → allowed.
+If the action is `INSERT`, `UPDATE`, `DELETE`, `DROP`, or "modify config" → 
+prohibited, unless explicitly approved for a one-time setup task like 
+creating `latest_inventory_snapshot`.
+
+When uncertain: assume read-only is fine, anything that writes or changes 
+state requires explicit human approval first.
+
+
 ---
 
 ## 3. Database Schema
@@ -338,7 +389,6 @@ Dashboard runs at `http://localhost:3000`.
 - **Never use `SUM()` on `days_out` or `stockout_pct`** when grouping (Section 4.1).
 - **Never query `branch_stock_reports` directly for the daily dashboard.** Use `latest_inventory_snapshot` (Section 3).
 - **Never round numbers before aggregating.** Round only at the display layer (Section 4.3).
-- **Never modify the n8n workflow** or anything in the data pipeline.
 - **Never assume RLS state without checking** — if queries return empty arrays unexpectedly, check RLS before any other debugging (Section 3).
 - **Never substitute libraries silently.** If you think something different from Section 1's stack is better, ask first.
 
