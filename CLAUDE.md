@@ -323,17 +323,15 @@ inventory-dashboard/
 ├── tsconfig.json
 ├── tailwind.config.ts
 ├── app/
-│   ├── layout.tsx
-│   ├── page.tsx                ← Main dashboard page
-│   └── globals.css
-├── app/
 │   ├── layout.tsx              ← Root layout with <Navigation />
 │   ├── page.tsx                ← Inventory dashboard (Master Dashboard)
 │   ├── gmroi/page.tsx          ← GMROI page (§14)
+│   ├── freight/page.tsx        ← Inbound Freight page (§15)
+│   ├── line-counts/page.tsx    ← Line Counts page (§16)
 │   └── test/page.tsx           ← Debug page from Phase 1, kept for diagnostics
 ├── components/
 │   ├── ui/                     ← shadcn/ui primitives
-│   ├── Navigation.tsx          ← Top nav: Inventory / GMROI links
+│   ├── Navigation.tsx          ← Top nav: Inventory / GMROI / Freight / Line Counts
 │   ├── filters/
 │   │   ├── BranchFilter.tsx
 │   │   ├── DateRangeFilter.tsx
@@ -351,10 +349,19 @@ inventory-dashboard/
 │   │   ├── AlertsPanel.tsx
 │   │   ├── BottlenecksPanel.tsx
 │   │   └── AlertCard.tsx
-│   └── gmroi/
-│       ├── GmroiOverviewCards.tsx
-│       ├── GmroiByBranchTable.tsx
-│       └── GmroiByBuyLineTable.tsx
+│   ├── gmroi/
+│   │   ├── GmroiOverviewCards.tsx
+│   │   ├── GmroiByBranchTable.tsx
+│   │   └── GmroiByBuyLineTable.tsx
+│   ├── freight/
+│   │   ├── FreightOverviewCards.tsx
+│   │   ├── FreightByVendorTable.tsx
+│   │   ├── FreightByWriterTable.tsx
+│   │   └── HighInboundTable.tsx
+│   └── line-counts/
+│       ├── LineCountScorecards.tsx
+│       ├── LineCountsByWriterChart.tsx
+│       └── LineCountsPivotTable.tsx
 ├── lib/
 │   ├── supabase.ts             ← Supabase client
 │   ├── types.ts                ← Inventory schema types
@@ -362,15 +369,21 @@ inventory-dashboard/
 │   ├── aggregations.ts         ← Inventory AVG helpers (§4.1)
 │   ├── aggregations.test.ts    ← tsx-runnable test
 │   ├── gmroi-aggregations.ts   ← GMROI helpers
+│   ├── inbound-freight-types.ts        ← Freight schema types
+│   ├── inbound-freight-aggregations.ts ← Freight helpers (§15)
+│   ├── line-counts-types.ts            ← Line Counts schema types
+│   ├── line-counts-aggregations.ts     ← Line Counts helpers (§16)
 │   ├── alerts.ts               ← Rule registry + engine (§13)
 │   ├── alerts.test.ts          ← tsx-runnable test
 │   ├── filters.ts              ← Filter state types + client-side helpers
 │   ├── format.ts               ← Shared display formatters (§4.3)
 │   └── utils.ts                ← cn() className composer
 └── hooks/
-    ├── useInventoryData.ts     ← Calls latest_inventory_in_range RPC
-    ├── useGmroiData.ts         ← Reads latest_gmroi_snapshot view
-    └── useFilterState.tsx      ← Filter context + provider
+    ├── useInventoryData.ts        ← Calls latest_inventory_in_range RPC
+    ├── useGmroiData.ts            ← Reads latest_gmroi_snapshot view
+    ├── useInboundFreightData.ts   ← Reads latest_inbound_freight_snapshot view (§15)
+    ├── useLineCountsData.ts       ← Reads latest_line_counts_snapshot view (§16)
+    └── useFilterState.tsx         ← Filter context + provider
 ```
 
 ### Required Environment Variables
@@ -643,6 +656,100 @@ aggregating in the dashboard so totals don't double-count. The filter lives in
 
 GMROI is a ratio — AVG, not SUM. Markup% and Adjusted Margin% are also
 percentages → AVG. Dollar columns are flow quantities → SUM is appropriate.
+
+---
+
+## 15. Inbound Freight Page
+
+Lives at `/freight`. Reads `latest_inbound_freight_snapshot` view. Data is
+monthly cadence (matches the GMROI feed pattern).
+
+### Schema
+
+`branch_inbound_freight_reports` columns: `report_date`, `order_number`,
+`line_number` (synthetic per-order counter), `writer` (buyer code),
+`vendor_name`, `gen_total_dollars`, `freight_dollars`, `inbound_pct` (stored as
+integer percent, e.g. 159 means 159%). Composite unique:
+`(report_date, order_number, line_number)`.
+
+### Source CSV quirks
+
+- Heavy whitespace padding on `Writer` and `Vendor Name` — cleaner trims.
+- Vendor names with embedded commas are quoted — `parseCsvLine` handles.
+- `Gen Total $` can be negative (credits/returns).
+- `Inbound %` can exceed 100% when freight > order total.
+- Multiple identical rows per `(writer, order, vendor)` are line items in the
+  same PO. The cleaner increments a per-order `line_number` counter to make
+  them unique without losing any source data.
+
+### Layout
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Header: "Inbound Freight" + snapshot date + line item count              │
+├─────────────────────────────────────────────────────────────────────────┤
+│ 3 overview scorecards: Total Order $, Total Freight $, Avg Inbound %     │
+├─────────────────────────────────────────────────────────────────────────┤
+│ By Writer (table)                                                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│ By Vendor (table, default sort = highest freight $)                      │
+├─────────────────────────────────────────────────────────────────────────┤
+│ High Inbound % Orders (table, filtered to inbound_pct >= 20)             │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Aggregation rules
+
+- `freightTotals`: SUM of gen_total and freight, AVG of inbound_pct, COUNT
+  distinct vendors/writers.
+- `aggregateFreightByVendor` / `aggregateFreightByWriter`: SUM of dollar
+  columns, AVG of inbound_pct.
+
+Dollars are flow quantities → SUM. Inbound % is a per-row ratio → AVG.
+
+---
+
+## 16. Line Counts Page
+
+Lives at `/line-counts`. Reads `latest_line_counts_snapshot` view. Data is
+daily cadence (matches inventory).
+
+### Schema
+
+`branch_line_count_reports` columns: `report_date`, `writer`, `line_type`,
+`line_count`. Composite unique: `(report_date, writer, line_type)`.
+
+`line_type` is one of `'PO'`, `'SO'`, `'DIR'`, `'TR'` — derived by the cleaner
+from the source CSV's 2nd-column header (`PO Lines`, `SO Lines`, `Dir. Lines`,
+`TR Lines`). Source ships **4 separate CSV files per day**, one per type; they
+all land in the same Drive folder. Cleaner detects the type from the header,
+extracts writer + count, skips empty separator rows and the footer total.
+
+### Source CSV quirks
+
+- Empty separator rows between every writer line — skip rows where writer is blank.
+- Footer total row uses `=========` separator and has whitespace-only writer —
+  skip rows where the count column contains `=`.
+
+### Layout
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Header: "Line Counts" + snapshot date + row count                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│ 4 scorecards: PO Lines, SO Lines, Direct Lines, Transfer Lines           │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Bar chart: Lines by Writer (stacked by line type, sorted desc by total)  │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Pivot table: Writer × line type with row totals                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Aggregation rules
+
+- `lineCountTotals`: SUM line_count per type, COUNT distinct writers per type.
+- `aggregateLineCountsByWriter`: pivots rows into one row per writer with PO,
+  SO, DIR, TR, and total columns. Sorted by total desc.
 
 ---
 
