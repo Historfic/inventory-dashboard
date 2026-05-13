@@ -6,7 +6,12 @@ import { evaluateAlerts } from "@/lib/alerts";
 import { AlertCard } from "./AlertCard";
 import type { InventoryRow } from "@/lib/types";
 
-export function AlertsPanel({ rows }: { rows: InventoryRow[] }) {
+type Props = {
+  rows: InventoryRow[];
+  reportDate: string | null;
+};
+
+export function AlertsPanel({ rows, reportDate }: Props) {
   const alerts = useMemo(() => evaluateAlerts(rows), [rows]);
 
   return (
@@ -27,7 +32,7 @@ export function AlertsPanel({ rows }: { rows: InventoryRow[] }) {
                 a.rule.severity === b.rule.severity ? 0 : a.rule.severity === "critical" ? -1 : 1
               )
               .map((alert) => (
-                <AlertCard key={alert.rule.id} alert={alert} />
+                <AlertCard key={alert.rule.id} alert={alert} reportDate={reportDate} />
               ))}
           </div>
         )}

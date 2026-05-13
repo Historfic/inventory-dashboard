@@ -17,6 +17,7 @@ import { PurchaseDaysOutTable } from "@/components/kpi/PurchaseDaysOutTable";
 import { BuyLineTreemap } from "@/components/kpi/BuyLineTreemap";
 import { AlertsPanel } from "@/components/alerts/AlertsPanel";
 import { BottlenecksPanel } from "@/components/alerts/BottlenecksPanel";
+import { ExecutiveBriefCard } from "@/components/ai/ExecutiveBriefCard";
 
 export default function DashboardPage() {
   return (
@@ -94,8 +95,12 @@ function DashboardContents() {
         </div>
       ) : (
         <>
+          <section className="mb-4">
+            <ExecutiveBriefCard rows={filteredRows} reportDate={reportDate} />
+          </section>
+
           <section className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <AlertsPanel rows={filteredRows} />
+            <AlertsPanel rows={filteredRows} reportDate={reportDate} />
             <BottlenecksPanel rows={filteredRows} />
           </section>
 

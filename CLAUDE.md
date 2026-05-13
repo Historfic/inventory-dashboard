@@ -764,4 +764,61 @@ extracts writer + count, skips empty separator rows and the footer total.
 
 ---
 
+## 17. AI Features (Claude Haiku 4.5)
+
+Two AI features sit on top of the main dashboard. Both call Anthropic's API
+**server-side only** from Next.js route handlers — the API key never reaches the
+browser. Model: `claude-haiku-4-5` (kept on Haiku for cost; one snapshot ≈ a few
+hundred tokens of summarized input per call).
+
+### 17.1 — Daily Executive Brief
+
+- Endpoint: `app/api/brief/route.ts` (`POST /api/brief`).
+- UI: `components/ai/ExecutiveBriefCard.tsx`, rendered between the filters bar
+  and the alerts row on `/`.
+- Hook: `hooks/useExecutiveBrief.ts`.
+- Input: pre-aggregated stats only — no raw rows. Snapshot date, items shown,
+  revenue at risk, critical-fires count, top-5 buyers by avg stockout %, top-5
+  buy lines fully out with no PO, and alert counts.
+- Output: 2 short plain-text paragraphs. No markdown.
+
+### 17.2 — Alert Explainer
+
+- Endpoint: `app/api/explain/route.ts` (`POST /api/explain`).
+- UI: expansion inside `components/alerts/AlertCard.tsx` ("Why this matters →").
+  Only fetched when the user clicks the disclosure — explanations are lazy.
+- Hook: `hooks/useAlertExplanation.ts`.
+- Input: alert id, severity, item count, top buyers/buy lines in the alert, and
+  up to 5 representative items (ecl_id + days_out + stockout_pct).
+- Output: 2 short paragraphs (what it means + suggested next action).
+
+### 17.3 — Caching
+
+- Server-side: `lib/ai-cache.ts` — in-memory TTL cache (24h default). Brief
+  cached by a fingerprint of `(reportDate, headline stats, top-N rankings)`.
+  Explainer cached by `(reportDate, alertId, top-N buyers, top-N buy lines)`.
+- Cache hits never touch Anthropic. Response includes `cached: true`.
+- Cache is per server instance — Vercel cold starts will repopulate it on first
+  request after deploy. This is acceptable for the use case.
+
+### 17.4 — Rules
+
+- `ANTHROPIC_API_KEY` is server-only. **Never** prefix with `NEXT_PUBLIC_`.
+- Never send raw `InventoryRow[]` to the model — aggregate first. Keeps cost
+  predictable and avoids leaking item-level data into prompt logs.
+- All numbers in the prompt come from the dashboard's own aggregations — never
+  let the model invent figures. Output prompts say so explicitly.
+- Failure modes: API key missing → 500 with clear message. Rate limit → 429.
+  Other Anthropic errors → 502. UI shows the error inline; the dashboard itself
+  keeps working.
+
+### 17.5 — Adjusting the prompts
+
+System prompts live as `SYSTEM_PROMPT` constants at the top of each route file.
+Edit there, save, hot-reload. The cache key does **not** include the prompt
+text, so after a prompt change either clear the in-memory cache (restart the
+server) or flip a hidden cache-buster constant if testing iteratively.
+
+---
+
 **End of CLAUDE.md.** When in doubt, re-read Section 0 (Session Mode) and Section 4 (the Traps) before writing code that aggregates anything or modifying the pipeline.
