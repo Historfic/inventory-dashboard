@@ -1,4 +1,8 @@
-import { aggregateByBuyer, aggregateByBuyLine } from "./aggregations";
+import {
+  aggregateByBuyer,
+  aggregateByBuyLine,
+  aggregateByBuyerBuyLine,
+} from "./aggregations";
 import type { InventoryRow } from "./types";
 
 const sample = [
@@ -13,3 +17,6 @@ console.table(aggregateByBuyer(sample));
 
 console.log("\n=== aggregateByBuyLine ===");
 console.table(aggregateByBuyLine(sample));
+
+console.log("\n=== aggregateByBuyerBuyLine ===");
+console.table(aggregateByBuyerBuyLine(sample));

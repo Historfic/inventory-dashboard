@@ -4,9 +4,47 @@
 
 ---
 
+## 0. Session Mode (Read This First)
+
+This CLAUDE.md applies to two different operators with different permission levels. **Identify which mode this session is operating in before doing anything else.**
+
+### Owner Mode (Raffy / Azrael)
+
+You are operating in **Owner Mode** when:
+- The user identifies as the project owner, lead developer, or "Raffy" / "Azrael"
+- The user references being the maintainer of the n8n pipeline
+- The session is happening outside an explicit handoff context
+
+In Owner Mode:
+- Full n8n write access is **allowed** (see Section 2.5-A)
+- Supabase read access is allowed; write access remains gated (see Section 2.5-B)
+- The "Things You Must Never Do" rules in Section 9 still apply, but the n8n-specific prohibitions in Delegated Mode do not
+
+### Delegated Mode (Junior Developer)
+
+You are operating in **Delegated Mode** when:
+- The user identifies as a junior developer, contractor, or trainee
+- The session is part of a delegated handoff
+- There is any ambiguity about who is operating — **default to this mode**
+
+In Delegated Mode:
+- All write access to n8n and Supabase is **prohibited**
+- Only read-only inspection is allowed (see Section 2.5-C)
+- Section 9 prohibitions apply in full
+
+### How to Behave When Mode Is Unclear
+
+If you cannot clearly tell which mode this session is in, **ask once**:
+
+> "Before I proceed, I want to confirm which mode this session is operating in: Owner Mode (full write access to n8n, gated write to Supabase) or Delegated Mode (read-only). Which applies here?"
+
+Default to Delegated Mode until the user confirms otherwise. **Do not assume Owner Mode based on the user being friendly or persistent. Confirm explicitly.**
+
+---
+
 ## 1. Project Overview
 
-We are replacing an existing **Looker Studio** dashboard with a custom **Next.js + Supabase** web application for a client (Todd). The backend data pipeline (CSV → n8n → Supabase Postgres) is already built and stable. **Your job is the frontend only.** Do not touch, suggest changes to, or rebuild the data pipeline.
+We are replacing an existing **Looker Studio** dashboard with a custom **Next.js + Supabase** web application for a client (Todd). The backend data pipeline (CSV → n8n → Supabase Postgres) is already built and stable. **In Delegated Mode, your job is the frontend only.** In Owner Mode, the operator may modify the pipeline as needed.
 
 ### Stack (fixed — do not substitute)
 
@@ -23,9 +61,7 @@ If you think a different library would be better, **stop and ask** before swappi
 
 ---
 
-## 2. The Data Pipeline (Context Only — Do Not Modify)
-
-You will never edit this. You need to understand it so you query the database correctly.
+## 2. The Data Pipeline (Context)
 
 1. **Source:** Daily CSV "Branch Stock Reports" dropped into a Google Drive folder by an ERP system.
 2. **Middleware:** An n8n workflow runs on a **24-hour schedule**, fetches the CSVs, runs a "Surgical Cleaner" script, and bulk-upserts rows into Supabase.
@@ -34,56 +70,80 @@ You will never edit this. You need to understand it so you query the database co
    - **Buyer Standardization:** Empty/null `buyer` values are rewritten as `"UNASSIGNED"`. You will never see null or empty string for `buyer`.
    - **Stockout Cap:** `stockout_pct = min(1.0, days_out / period)`. Values are guaranteed between 0.0 and 1.0 inclusive, rounded to 4 decimal places.
 
-## 2.5 Read-Only Pipeline Access (Allowed)
+---
 
-While the data pipeline is owned upstream and must not be modified, 
-**read-only inspection is explicitly allowed and encouraged** for 
-development purposes.
+## 2.5 Pipeline Access Rules
 
-### Allowed via Supabase MCP
+### 2.5-A — n8n Access (Owner Mode)
 
-- Query any table or view to inspect schema, column types, and sample rows
-- Check whether `latest_inventory_snapshot` exists; create it if not 
-  (this is a development setup step, not a pipeline modification)
-- Verify RLS policies on `branch_stock_reports` and 
-  `latest_inventory_snapshot`
-- Generate TypeScript types from the live schema
-- Run `SELECT` queries to verify data shape, row counts, value distributions,
-  or freshness (e.g., `SELECT MAX(report_date)`)
-- Inspect indexes and constraints
-- Check the row count of `latest_inventory_snapshot` to validate 
-  pagination assumptions
+**In Owner Mode, full n8n write access is allowed.** This includes:
 
-### Allowed via n8n (if MCP or API access is available)
+- Editing any workflow node, code, schedule, or credential
+- Creating new workflows
+- Modifying the Surgical CSV Cleaner code
+- Adjusting the Schedule Trigger interval
+- Disabling, enabling, duplicating, or deleting workflows
+- Modifying field mappings or upsert behavior
+- Triggering workflow runs manually
+- Reading execution history and node configurations
 
-- Read workflow definitions to verify the data pipeline matches the 
-  schema and transformation rules documented in this file
-- Check execution history to confirm the most recent successful run
-- Verify the schedule is active and not paused
-- Read node configurations to confirm field mappings (column names, 
-  data types) match what the frontend expects
+**However, before any destructive or pipeline-altering action, you MUST follow these guardrails:**
 
-### Still Prohibited
+1. **Announce the change before making it.** State plainly what you are about to do, on which workflow, and what the impact is. Example: *"I am about to modify the Surgical CSV Cleaner code to change the desc_2 stitching logic. This will affect every future pipeline run."*
 
-- **Editing** any n8n workflow node, code, schedule, or credential
-- **Disabling, enabling, duplicating, or deleting** workflows
-- **Modifying** the `branch_stock_reports` schema (columns, types, constraints)
-- **Running** `UPDATE`, `DELETE`, `INSERT`, `DROP`, `ALTER`, or `TRUNCATE` 
-  on `branch_stock_reports`
-- **Modifying** the n8n credentials or OAuth grants
-- **Triggering** workflow runs manually (this could create duplicate or 
-  conflicting data depending on n8n's idempotency setup)
+2. **Pause for confirmation on these specific actions:**
+   - Deleting a workflow
+   - Disabling the production Schedule Trigger
+   - Modifying the Supabase upsert node (changing conflict resolution, headers, or the endpoint URL)
+   - Modifying credentials (Google Drive OAuth, Supabase auth tokens)
+   - Triggering manual runs against the production Supabase project
 
-### Rule of Thumb
+   For these, ask: *"This action will [describe impact]. Confirm to proceed?"* and wait for an explicit "yes" or "confirmed" before executing.
 
-If the action is `SELECT`, `EXPLAIN`, `SHOW`, or "view config" → allowed.
-If the action is `INSERT`, `UPDATE`, `DELETE`, `DROP`, or "modify config" → 
-prohibited, unless explicitly approved for a one-time setup task like 
-creating `latest_inventory_snapshot`.
+3. **Read before write.** Before editing any node, read its current configuration and explain what it does in your own words. If you cannot explain what a node currently does, you do not understand it well enough to change it.
 
-When uncertain: assume read-only is fine, anything that writes or changes 
-state requires explicit human approval first.
+4. **One change at a time.** Do not batch multiple workflow edits into a single tool call. Each modification gets its own announcement, execution, and verification.
 
+5. **Verify after every change.** After editing a workflow, either run it once in a test context or describe how the operator should manually verify the change worked. Never assume an edit succeeded just because the tool call returned success.
+
+### 2.5-B — Supabase Access (Owner Mode + Delegated Mode)
+
+Read access is allowed in both modes. Write access is **still gated** even in Owner Mode and requires explicit per-task approval.
+
+**Allowed without per-task approval (both modes):**
+- `SELECT` queries on any table or view
+- Inspecting schema, column types, indexes, constraints, and RLS policies
+- Reading sample rows for development verification
+- Generating TypeScript types from the live schema
+- Checking row counts and value distributions (`SELECT COUNT(*)`, `SELECT MAX(report_date)`, etc.)
+- One-time creation of `latest_inventory_snapshot` view if it does not yet exist (development setup task)
+- Granting `SELECT` to the anon role on dashboard views
+
+**Requires explicit approval before executing (Owner Mode):**
+- `INSERT`, `UPDATE`, `DELETE` on `branch_stock_reports`
+- `DROP`, `ALTER`, `TRUNCATE` on any table
+- Adding or removing indexes
+- Modifying RLS policies
+- Schema migrations of any kind
+
+**Always prohibited (both modes):**
+- Use of the service role key in frontend code
+- Any operation that bypasses RLS in the deployed app
+
+If you find yourself wanting to run a Supabase write operation, **pause and ask**: *"I want to run [exact SQL or operation] against [table]. This will [describe effect]. Should I proceed?"*
+
+### 2.5-C — Delegated Mode (Read-Only)
+
+In Delegated Mode, all of the following are **prohibited without exception**:
+
+- Editing any n8n workflow node, code, schedule, or credential
+- Disabling, enabling, duplicating, or deleting workflows
+- Triggering workflow runs manually
+- Modifying the `branch_stock_reports` schema
+- Running `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, or `TRUNCATE` on any production table
+- Modifying any credential, OAuth grant, or API key
+
+Read-only inspection of n8n and Supabase is allowed and encouraged for debugging and verification, identical to the read-only rules in 2.5-B.
 
 ---
 
@@ -200,37 +260,45 @@ For v1 the dashboard only uses `latest_inventory_snapshot`, so this is informati
 - Cards: stark white (`bg-white`), `rounded-lg` corners, subtle drop shadow (`shadow-sm` or `shadow`)
 - Typography: system font stack or Inter — readable, professional
 
-### Layout (Three-Tier Drill-Down)
+### Layout (Master Dashboard)
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│  Header                                                    │
-│  ─ Title: "Inventory Dashboard"                            │
-│  ─ Toggle: "Hide UNASSIGNED"  ─ "Last updated: <date>"     │
-├────────────────────────────────────────────────────────────┤
-│  Active filters bar (shows current selections + Clear)     │
-├────────────────────────────────────────────────────────────┤
-│  ┌──────────────────────┐  ┌──────────────────────────┐    │
-│  │  Buyer Summary       │  │  Buy Line Averages       │    │
-│  │  Grouped by buyer    │  │  Grouped by buy_line     │    │
-│  │  Avg days_out        │  │  Avg days_out (sorted ↓) │    │
-│  │  Avg stockout_pct    │  │  Avg stockout_pct        │    │
-│  └──────────────────────┘  └──────────────────────────┘    │
-├────────────────────────────────────────────────────────────┤
-│  Purchase Days Out (Granular)                              │
-│  Grouped by ecl_id                                         │
-│  Cols: ecl_id, desc_1, desc_2, rank4, period, days_out,    │
-│        stockout_pct                                        │
-└────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Header: "Inventory Dashboard" + UNASSIGNED toggle + Snapshot date        │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Filters: [Branch ▾]  [Date range ▾]                                      │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Active filters chips + Clear all                                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Alerts panel    │ Bottlenecks panel  (top 5 buy_lines + top 3 buyers)    │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Revenue at Risk scorecard │ Critical Fires scorecard                     │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Bar chart: Days Out by Buyer (avg stockout_pct, descending, clickable)   │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Buyer Summary │ Buyer × Buy Line  (both tables, both cross-filterable)   │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Treemap: Buy Lines with No PO Outstanding (cell click = filter)          │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Purchase Days Out (extended granular: +buyer +buy_line +op +hits)        │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Cross-Filter Behavior
 
-- Clicking a **buyer** row → filters Buy Line table AND granular table to that buyer's rows
-- Clicking a **buy_line** row (with a buyer already selected) → narrows the granular table to **buyer AND buy_line** (intersection, not replacement)
-- Clicking the same row again → deselects that filter
-- "Clear filters" button → resets all selections
-- Active selections must be visually obvious (highlight the selected row)
+- Clicking a **buyer** in any KPI element (Bar chart bar, Buyer Summary row,
+  Bottlenecks panel) → filters all downstream views to that buyer.
+- Clicking a **buy_line** (Buyer × Buy Line row, Treemap cell, Bottlenecks panel)
+  → intersects with the current buyer filter (or stands alone if no buyer set).
+- Clicking the same item again → deselects.
+- "Clear all" in the active-filters bar → resets every filter.
+- Selected rows / cells are visually highlighted.
+
+### Date Range Semantics
+
+The Date filter scopes which days are *available*. The dashboard always displays
+the latest snapshot **within** the selected range (no averaging across days, per
+§4.5). Implemented via the `latest_inventory_in_range` RPC (see §3).
 
 ### Data Formatting
 
@@ -258,19 +326,51 @@ inventory-dashboard/
 │   ├── layout.tsx
 │   ├── page.tsx                ← Main dashboard page
 │   └── globals.css
+├── app/
+│   ├── layout.tsx              ← Root layout with <Navigation />
+│   ├── page.tsx                ← Inventory dashboard (Master Dashboard)
+│   ├── gmroi/page.tsx          ← GMROI page (§14)
+│   └── test/page.tsx           ← Debug page from Phase 1, kept for diagnostics
 ├── components/
-│   ├── ui/                     ← shadcn/ui components
-│   ├── BuyerSummaryTable.tsx
-│   ├── BuyLineAveragesTable.tsx
-│   ├── GranularItemsTable.tsx
-│   ├── UnassignedToggle.tsx
-│   └── ActiveFiltersBar.tsx
+│   ├── ui/                     ← shadcn/ui primitives
+│   ├── Navigation.tsx          ← Top nav: Inventory / GMROI links
+│   ├── filters/
+│   │   ├── BranchFilter.tsx
+│   │   ├── DateRangeFilter.tsx
+│   │   ├── UnassignedToggle.tsx
+│   │   └── ActiveFiltersBar.tsx
+│   ├── kpi/
+│   │   ├── RevenueAtRiskCard.tsx
+│   │   ├── CriticalFiresCard.tsx
+│   │   ├── DaysOutByBuyerChart.tsx
+│   │   ├── BuyerSummaryTable.tsx
+│   │   ├── BuyerBuyLineTable.tsx
+│   │   ├── PurchaseDaysOutTable.tsx   ← extended granular
+│   │   └── BuyLineTreemap.tsx
+│   ├── alerts/
+│   │   ├── AlertsPanel.tsx
+│   │   ├── BottlenecksPanel.tsx
+│   │   └── AlertCard.tsx
+│   └── gmroi/
+│       ├── GmroiOverviewCards.tsx
+│       ├── GmroiByBranchTable.tsx
+│       └── GmroiByBuyLineTable.tsx
 ├── lib/
 │   ├── supabase.ts             ← Supabase client
-│   ├── aggregations.ts         ← Client-side AVG helpers
-│   └── types.ts                ← Schema types (auto-generate from Supabase)
+│   ├── types.ts                ← Inventory schema types
+│   ├── gmroi-types.ts          ← GMROI schema types
+│   ├── aggregations.ts         ← Inventory AVG helpers (§4.1)
+│   ├── aggregations.test.ts    ← tsx-runnable test
+│   ├── gmroi-aggregations.ts   ← GMROI helpers
+│   ├── alerts.ts               ← Rule registry + engine (§13)
+│   ├── alerts.test.ts          ← tsx-runnable test
+│   ├── filters.ts              ← Filter state types + client-side helpers
+│   ├── format.ts               ← Shared display formatters (§4.3)
+│   └── utils.ts                ← cn() className composer
 └── hooks/
-    └── useInventoryData.ts     ← Data fetching hook
+    ├── useInventoryData.ts     ← Calls latest_inventory_in_range RPC
+    ├── useGmroiData.ts         ← Reads latest_gmroi_snapshot view
+    └── useFilterState.tsx      ← Filter context + provider
 ```
 
 ### Required Environment Variables
@@ -356,32 +456,39 @@ Dashboard runs at `http://localhost:3000`.
 - **Both must use averages, never sums (Section 4.1).**
 - Unit test these in isolation with hand-crafted sample data before wiring to UI.
 
-### Phase 4 — Top two tables
-- Build `BuyerSummaryTable.tsx` and `BuyLineAveragesTable.tsx`
-- Buy Line Averages: sort descending by `avg_days_out`
-- No clicks yet — just display
+### Phase 4 — Filter infrastructure
+- Create `latest_inventory_in_range(start_date, end_date, branch_filter)` RPC in
+  Supabase with `SECURITY DEFINER` and `GRANT EXECUTE TO anon`.
+- Build `BranchFilter`, `DateRangeFilter`, `UnassignedToggle`, `ActiveFiltersBar`.
+- Filter state lives in `useFilterState` (React Context provider in the page).
+- `useInventoryData(filters)` switches to calling the RPC.
 
-### Phase 5 — Cross-filter wiring
-- Click handlers on rows in Buyer and Buy Line tables
-- Maintain selection state in the parent page
-- Re-derive filtered data for the tables below the selected row
-- Add Active Filters Bar with Clear button
-- Highlight selected rows visually
+### Phase 5 — KPI layer
+- Scorecards: `RevenueAtRiskCard` (SUM of `hits`) and `CriticalFiresCard` (row count).
+- Bar chart: `DaysOutByBuyerChart` (X=buyer, Y=avg stockout_pct, descending).
+- Tables: `BuyerSummaryTable`, `BuyerBuyLineTable`, `PurchaseDaysOutTable`
+  (the last is the extended granular: +buyer +buy_line +op +hits).
+- Treemap: `BuyLineTreemap` (items with `on_po = 0`).
+- All elements click-to-filter via `useFilterState`.
 
-### Phase 6 — UNASSIGNED toggle
-- Add toggle in header
-- When off, filter `"UNASSIGNED"` rows out of all three tables uniformly
+### Phase 6 — Alerts & Bottlenecks
+- See §13.
 
-### Phase 7 — Polish
-- Last-updated timestamp (from `MAX(report_date)` in the data)
-- Empty states ("No data matches the current filters")
-- Loading states
-- Error states (Supabase unreachable, etc.)
-- Final styling pass
+### Phase 7 — GMROI page
+- See §14.
+
+### Phase 8 — Polish + Vercel deploy
+- Update `metadata.title` to "Inventory Dashboard".
+- Loading / empty / error states on every KPI element.
+- `npm run build` → zero errors / zero warnings before deploy.
+- Vercel: import repo, set `NEXT_PUBLIC_SUPABASE_URL` and
+  `NEXT_PUBLIC_SUPABASE_ANON_KEY` in all three environments, deploy.
 
 ---
 
-## 9. Things You Must Never Do
+## 9. Things You Must Never Do (Both Modes)
+
+These apply regardless of mode:
 
 - **Never commit `.env.local`** or any file containing real keys. Verify `.gitignore` includes it before the first push.
 - **Never hardcode the anon key or service role key** anywhere in source files.
@@ -391,6 +498,19 @@ Dashboard runs at `http://localhost:3000`.
 - **Never round numbers before aggregating.** Round only at the display layer (Section 4.3).
 - **Never assume RLS state without checking** — if queries return empty arrays unexpectedly, check RLS before any other debugging (Section 3).
 - **Never substitute libraries silently.** If you think something different from Section 1's stack is better, ask first.
+
+### Owner Mode additions
+
+- **Never disable the production Schedule Trigger** without an explicit confirmation step and a stated plan for re-enabling it.
+- **Never modify the Surgical CSV Cleaner** without first reading and explaining the current logic out loud.
+- **Never run `INSERT`, `UPDATE`, or `DELETE`** on `branch_stock_reports` without explicit per-statement approval.
+- **Never batch multiple workflow edits** into a single action. One change, verify, repeat.
+
+### Delegated Mode additions
+
+- **Never modify the n8n workflow** under any circumstances. Read access only.
+- **Never run any write operation** against Supabase. Read access only.
+- **If asked to do something that requires write access**, refuse and tell the user this requires Owner Mode and a separate session with the project owner.
 
 ---
 
@@ -424,4 +544,106 @@ These may come later. **Do not build them speculatively.**
 
 ---
 
-**End of CLAUDE.md.** When in doubt, re-read Section 4 (the Traps) before writing code that aggregates anything.
+## 12. Owner's Pre-Modification Checklist (Owner Mode Only)
+
+Before making any modification to the n8n pipeline, the owner should mentally walk through this checklist. Claude Code should remind the owner of this list if it sees a modification request that touches the production workflow:
+
+- [ ] Do I have a recent backup or export of `branch_stock_reports` from the last 24 hours?
+- [ ] Is the current Schedule Trigger disabled, or am I OK with it running mid-edit?
+- [ ] Do I know how to revert this change if it breaks something? (n8n keeps version history — confirm it's accessible.)
+- [ ] If this edit affects today's pipeline run, do I have a plan for re-running the day's CSV manually?
+- [ ] Is anyone else (Junior Dev) currently editing the same workflow? (Collaborative edits can stomp each other.)
+- [ ] Is the change small enough to verify in one test run, or am I about to batch too much?
+
+If any of these is uncomfortable to answer "yes" to, **pause and prepare before modifying.**
+
+---
+
+## 13. Alerts & Bottlenecks Engine
+
+Rule-based, no AI. Lives in `lib/alerts.ts`. Evaluates inventory rows after the
+current filter state has been applied, so alerts reflect what's on screen.
+
+### Alert rules
+
+| id | severity | predicate |
+|---|---|---|
+| `critical-stockout-no-po` | critical | `stockout_pct >= 1.0 AND on_po === 0` |
+| `severe-stockout` | warning | `stockout_pct >= 0.8 AND stockout_pct < 1.0` |
+| `aging-stockout` | warning | `days_out >= 30 AND stockout_pct < 1.0` |
+
+Thresholds (0.8, 30) live as constants at the top of `lib/alerts.ts`. Adjust
+there and re-run `npx tsx lib/alerts.test.ts` to verify.
+
+### Bottlenecks (aggregate-level)
+
+- Top 5 **buy lines** by count of items matching `critical-stockout-no-po`.
+- Top 3 **buyers** by AVG(`stockout_pct`).
+
+Both bottleneck types are click-to-filter — clicking a buy line bottleneck sets
+the buy_line filter, clicking a buyer bottleneck sets the buyer filter.
+
+### Display rules
+
+- `AlertsPanel` shows critical alerts first, then warnings. Empty state when no
+  rule fires: "All clear for the current view."
+- `BottlenecksPanel` shows two columns (Buy lines / Buyers). Each entry is a
+  clickable row that toggles the corresponding filter.
+- The panels sit between the active-filters bar and the scorecard row.
+
+### Adding new rules
+
+1. Add the rule to `ALERT_RULES` in `lib/alerts.ts`.
+2. Add coverage to `lib/alerts.test.ts`.
+3. Re-run `npx tsx lib/alerts.test.ts` to confirm fires.
+4. Reload the dashboard.
+
+---
+
+## 14. GMROI Page
+
+Lives at `/gmroi`. Independent from the main dashboard because GMROI data is
+**monthly** (one file per month from the ERP) while inventory is **daily**, and
+the metrics are financial ratios rather than stock-day counts.
+
+### Data source
+
+- Reads `latest_gmroi_snapshot` view (filters to the most recent `report_date`
+  in `branch_gmroi_reports`).
+- Anon has `SELECT` on the view.
+- Hook: `useGmroiData()` — same shape as `useInventoryData` but no filter args
+  (date range is out-of-scope for v1 since data only updates monthly).
+
+### Layout
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Header: "GMROI Dashboard" + snapshot date + row count                    │
+├─────────────────────────────────────────────────────────────────────────┤
+│ 4 overview scorecards: Total GP$, Total COGS$, $ On Hand, Avg GMROI      │
+├─────────────────────────────────────────────────────────────────────────┤
+│ GMROI by Branch (table, excludes "All Branches" rollup row)              │
+├─────────────────────────────────────────────────────────────────────────┤
+│ GMROI by Buy Line (table, AVG metrics, sorted by GMROI desc)             │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### "All Branches" rollup row handling
+
+The ERP includes a per-buy-line "All Branches" rollup row. We store it (so we
+match the source-of-truth report Todd sees printed) but filter it out before
+aggregating in the dashboard so totals don't double-count. The filter lives in
+`lib/gmroi-aggregations.ts`.
+
+### Aggregation rules
+
+- `aggregateGmroiByBuyLine`: AVG of GMROI, turns, markup_pct, adjusted_margin_pct.
+- `aggregateGmroiByBranch`: SUM of GP$, COGS$, $OnHand; AVG of GMROI.
+- `companyTotals`: SUM of GP$, COGS$, $OnHand; AVG of GMROI.
+
+GMROI is a ratio — AVG, not SUM. Markup% and Adjusted Margin% are also
+percentages → AVG. Dollar columns are flow quantities → SUM is appropriate.
+
+---
+
+**End of CLAUDE.md.** When in doubt, re-read Section 0 (Session Mode) and Section 4 (the Traps) before writing code that aggregates anything or modifying the pipeline.

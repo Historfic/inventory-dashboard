@@ -2,24 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { InventoryRow } from "@/lib/types";
+import type { GmroiRow } from "@/lib/gmroi-types";
 
 type State = {
-  data: InventoryRow[] | null;
+  data: GmroiRow[] | null;
   loading: boolean;
   error: string | null;
   reportDate: string | null;
 };
 
-type Args = {
-  dateStart: string;
-  dateEnd: string;
-  branches: string[];
-};
-
-export function useInventoryData({ dateStart, dateEnd, branches }: Args) {
-  const branchKey = branches.join("|");
-
+export function useGmroiData() {
   const [state, setState] = useState<State>({
     data: null,
     loading: true,
@@ -29,16 +21,11 @@ export function useInventoryData({ dateStart, dateEnd, branches }: Args) {
 
   useEffect(() => {
     let cancelled = false;
-    setState((s) => ({ ...s, loading: true, error: null }));
 
     (async () => {
-      const branchList = branchKey === "" ? null : branchKey.split("|");
       const { data, error } = await supabase
-        .rpc("latest_inventory_in_range", {
-          start_date: dateStart,
-          end_date: dateEnd,
-          branch_filter: branchList,
-        })
+        .from("latest_gmroi_snapshot")
+        .select("*")
         .range(0, 9999);
 
       if (cancelled) return;
@@ -48,15 +35,15 @@ export function useInventoryData({ dateStart, dateEnd, branches }: Args) {
         return;
       }
 
-      const rows = (data ?? []) as InventoryRow[];
-      const reportDate = rows.length > 0 ? String(rows[0].report_date) : null;
+      const rows = (data ?? []) as GmroiRow[];
+      const reportDate = rows.length > 0 ? rows[0].report_date : null;
       setState({ data: rows, loading: false, error: null, reportDate });
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [dateStart, dateEnd, branchKey]);
+  }, []);
 
   return state;
 }

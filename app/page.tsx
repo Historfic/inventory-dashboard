@@ -1,34 +1,127 @@
 "use client";
 
-import { GranularItemsTable } from "@/components/GranularItemsTable";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMemo } from "react";
+import { FilterProvider, useFilterState } from "@/hooks/useFilterState";
 import { useInventoryData } from "@/hooks/useInventoryData";
+import { applyClientFilters, uniqueBranches } from "@/lib/filters";
+import { BranchFilter } from "@/components/filters/BranchFilter";
+import { DateRangeFilter } from "@/components/filters/DateRangeFilter";
+import { UnassignedToggle } from "@/components/filters/UnassignedToggle";
+import { ActiveFiltersBar } from "@/components/filters/ActiveFiltersBar";
+import { RevenueAtRiskCard } from "@/components/kpi/RevenueAtRiskCard";
+import { CriticalFiresCard } from "@/components/kpi/CriticalFiresCard";
+import { DaysOutByBuyerChart } from "@/components/kpi/DaysOutByBuyerChart";
+import { BuyerSummaryTable } from "@/components/kpi/BuyerSummaryTable";
+import { BuyerBuyLineTable } from "@/components/kpi/BuyerBuyLineTable";
+import { PurchaseDaysOutTable } from "@/components/kpi/PurchaseDaysOutTable";
+import { BuyLineTreemap } from "@/components/kpi/BuyLineTreemap";
+import { AlertsPanel } from "@/components/alerts/AlertsPanel";
+import { BottlenecksPanel } from "@/components/alerts/BottlenecksPanel";
 
 export default function DashboardPage() {
-  const { data, loading, error } = useInventoryData();
+  return (
+    <FilterProvider>
+      <DashboardContents />
+    </FilterProvider>
+  );
+}
+
+function DashboardContents() {
+  const {
+    filters,
+    setBranches,
+    setDateRange,
+    setHideUnassigned,
+  } = useFilterState();
+
+  const { data, loading, error, reportDate } = useInventoryData({
+    dateStart: filters.dateStart,
+    dateEnd: filters.dateEnd,
+    branches: filters.branches,
+  });
+
+  const filteredRows = useMemo(
+    () => (data ? applyClientFilters(data, filters) : []),
+    [data, filters]
+  );
+
+  const availableBranches = useMemo(
+    () => (data ? uniqueBranches(data) : []),
+    [data]
+  );
 
   return (
     <main className="min-h-screen bg-gray-50 p-8">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Inventory Dashboard</h1>
+      <header className="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Inventory Dashboard</h1>
+          <p className="text-sm text-gray-500">
+            {reportDate ? `Snapshot: ${reportDate}` : "Loading snapshot…"}
+            {filters.branches.length > 0 && ` · ${filters.branches.length} branch(es)`}
+            {data && ` · ${filteredRows.length.toLocaleString()} items shown`}
+          </p>
+        </div>
+        <UnassignedToggle
+          hideUnassigned={filters.hideUnassigned}
+          onChange={setHideUnassigned}
+        />
       </header>
 
-      <Card className="bg-white shadow-sm rounded-lg">
-        <CardHeader>
-          <CardTitle>Purchase Days Out</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="py-12 text-center text-sm text-gray-500">Loading...</div>
-          ) : error ? (
-            <div className="py-12 text-center text-sm text-red-700">
-              Error loading data: {error}
-            </div>
-          ) : (
-            <GranularItemsTable data={data ?? []} />
-          )}
-        </CardContent>
-      </Card>
+      <section className="mb-4 flex flex-wrap items-center gap-3 rounded-lg bg-white p-3 shadow-sm">
+        <BranchFilter
+          available={availableBranches}
+          selected={filters.branches}
+          onChange={setBranches}
+        />
+        <DateRangeFilter
+          dateStart={filters.dateStart}
+          dateEnd={filters.dateEnd}
+          onChange={setDateRange}
+        />
+      </section>
+
+      <section className="mb-4">
+        <ActiveFiltersBar />
+      </section>
+
+      {error ? (
+        <div className="rounded-lg border border-red-200 bg-white p-6 text-sm text-red-700 shadow-sm">
+          Error loading data: {error}
+        </div>
+      ) : loading ? (
+        <div className="rounded-lg bg-white p-12 text-center text-sm text-gray-500 shadow-sm">
+          Loading…
+        </div>
+      ) : (
+        <>
+          <section className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <AlertsPanel rows={filteredRows} />
+            <BottlenecksPanel rows={filteredRows} />
+          </section>
+
+          <section className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <RevenueAtRiskCard rows={filteredRows} />
+            <CriticalFiresCard rows={filteredRows} />
+          </section>
+
+          <section className="mb-4">
+            <DaysOutByBuyerChart rows={filteredRows} />
+          </section>
+
+          <section className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <BuyerSummaryTable rows={filteredRows} />
+            <BuyerBuyLineTable rows={filteredRows} />
+          </section>
+
+          <section className="mb-4">
+            <BuyLineTreemap rows={filteredRows} />
+          </section>
+
+          <section>
+            <PurchaseDaysOutTable rows={filteredRows} />
+          </section>
+        </>
+      )}
     </main>
   );
 }
