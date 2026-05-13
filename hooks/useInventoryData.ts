@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/fetchAllPages";
 import type { InventoryRow } from "@/lib/types";
 
 type State = {
@@ -32,25 +33,25 @@ export function useInventoryData({ dateStart, dateEnd, branches }: Args) {
     setState((s) => ({ ...s, loading: true, error: null }));
 
     (async () => {
-      const branchList = branchKey === "" ? null : branchKey.split("|");
-      const { data, error } = await supabase
-        .rpc("latest_inventory_in_range", {
-          start_date: dateStart,
-          end_date: dateEnd,
-          branch_filter: branchList,
-        })
-        .range(0, 9999);
-
-      if (cancelled) return;
-
-      if (error) {
-        setState({ data: null, loading: false, error: error.message, reportDate: null });
-        return;
+      try {
+        const branchList = branchKey === "" ? null : branchKey.split("|");
+        const rows = await fetchAllPages<InventoryRow>((from, to) =>
+          supabase
+            .rpc("latest_inventory_in_range", {
+              start_date: dateStart,
+              end_date: dateEnd,
+              branch_filter: branchList,
+            })
+            .range(from, to)
+        );
+        if (cancelled) return;
+        const reportDate = rows.length > 0 ? String(rows[0].report_date) : null;
+        setState({ data: rows, loading: false, error: null, reportDate });
+      } catch (err) {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : "Unknown error";
+        setState({ data: null, loading: false, error: message, reportDate: null });
       }
-
-      const rows = (data ?? []) as InventoryRow[];
-      const reportDate = rows.length > 0 ? String(rows[0].report_date) : null;
-      setState({ data: rows, loading: false, error: null, reportDate });
     })();
 
     return () => {

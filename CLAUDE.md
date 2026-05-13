@@ -222,14 +222,40 @@ This applies to the SQL side, the Supabase RPC side, and any client-side aggrega
 
 ### 4.2 The 1,000-Row Default Limit
 
-Supabase REST API caps every query at **1,000 rows by default**. It does not throw an error — it just returns the first 1,000 rows silently. This will look fine in development with small data and break in production.
+Supabase / PostgREST caps every query at **1,000 rows** by a project-level
+`max-rows` setting. It does not throw an error — it just returns the first
+1,000 rows silently. **`.range(0, 9999)` does NOT bypass this cap** (PostgREST
+clamps the range request to whatever `max-rows` is). We learned this the hard
+way when the GMROI page showed 3 branches instead of 9 and the inventory
+dashboard was silently computing on 1,000 of 3,122 rows.
 
-Two options when fetching potentially-large result sets:
+**Correct fix: paginate.** Loop `.range(from, to)` 1k rows at a time until a
+short page comes back. Use the `fetchAllPages` helper in `lib/fetchAllPages.ts`
+— it accepts a query builder and pages until exhausted:
 
-- For the granular bottom table: use `.range(0, 9999)` or paginate explicitly.
-- For aggregated tables (Buyer Summary, Buy Line Averages): aggregate **server-side** via a Postgres function or a view, so the response is already small.
+```ts
+import { fetchAllPages } from "@/lib/fetchAllPages";
 
-**Default assumption:** the granular table needs `.range(0, 9999)` explicitly added.
+const rows = await fetchAllPages<MyRow>((from, to) =>
+  supabase.from("my_view").select("*").range(from, to)
+);
+```
+
+It also works with RPC results:
+
+```ts
+const rows = await fetchAllPages<MyRow>((from, to) =>
+  supabase.rpc("my_rpc", { ... }).range(from, to)
+);
+```
+
+All four data hooks (`useInventoryData`, `useGmroiData`,
+`useInboundFreightData`, `useLineCountsData`) use this helper. If you add a
+new hook, use it too.
+
+**Alternative:** aggregate server-side via a Postgres function/view so the
+response is already small. Preferred for purely aggregated tables; the granular
+tables need the full row set so they must paginate.
 
 ### 4.3 Decimal Display Rules
 
@@ -534,7 +560,7 @@ If something doesn't work and the error isn't obvious:
 
 1. **Empty array from Supabase but data should exist** → RLS is the most likely cause. Check Authentication → Policies in Supabase dashboard.
 2. **Numbers don't match Looker Studio** → 99% certainty it's the SUM trap (Section 4.1) or a decimal rounding mistake (Section 4.3). Audit the aggregation logic before anything else.
-3. **Table shows exactly 1,000 rows when more should exist** → The 1,000-row default limit. Add `.range(0, 9999)` (Section 4.2).
+3. **Table shows exactly 1,000 rows when more should exist** → The PostgREST 1,000-row cap (Section 4.2). `.range(0, 9999)` does NOT fix it — wrap the query in `fetchAllPages` from `lib/fetchAllPages.ts`.
 4. **TypeScript errors after schema change** → Re-run `supabase gen types typescript` to regenerate `lib/types.ts`.
 5. **Deployed site works but local doesn't (or vice versa)** → Environment variable mismatch between Vercel and `.env.local`.
 
