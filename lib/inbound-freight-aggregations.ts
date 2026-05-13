@@ -13,6 +13,8 @@ export type FreightByWriter = {
   total_gen_total: number;
   total_freight: number;
   avg_inbound_pct: number | null;
+  /** Weighted freight ratio: SUM(freight) / SUM(order) * 100. Null when order total <= 0. */
+  freight_pct_of_order: number | null;
   line_count: number;
 };
 
@@ -75,11 +77,18 @@ export function aggregateFreightByWriter(rows: InboundFreightRow[]): FreightByWr
     if (!groups.has(r.writer)) groups.set(r.writer, []);
     groups.get(r.writer)!.push(r);
   }
-  return Array.from(groups.entries()).map(([writer, group]) => ({
-    writer,
-    total_gen_total: sum(group.map((r) => r.gen_total_dollars)),
-    total_freight: sum(group.map((r) => r.freight_dollars)),
-    avg_inbound_pct: average(group.map((r) => r.inbound_pct)),
-    line_count: group.length,
-  }));
+  return Array.from(groups.entries()).map(([writer, group]) => {
+    const total_gen_total = sum(group.map((r) => r.gen_total_dollars));
+    const total_freight = sum(group.map((r) => r.freight_dollars));
+    const freight_pct_of_order =
+      total_gen_total > 0 ? (total_freight / total_gen_total) * 100 : null;
+    return {
+      writer,
+      total_gen_total,
+      total_freight,
+      avg_inbound_pct: average(group.map((r) => r.inbound_pct)),
+      freight_pct_of_order,
+      line_count: group.length,
+    };
+  });
 }

@@ -2,6 +2,7 @@
 
 import { useInboundFreightData } from "@/hooks/useInboundFreightData";
 import { FreightOverviewCards } from "@/components/freight/FreightOverviewCards";
+import { FreightPctByWriterChart } from "@/components/freight/FreightPctByWriterChart";
 import { FreightByVendorTable } from "@/components/freight/FreightByVendorTable";
 import { FreightByWriterTable } from "@/components/freight/FreightByWriterTable";
 import { HighInboundTable } from "@/components/freight/HighInboundTable";
@@ -34,6 +35,7 @@ export default function FreightPage() {
       ) : (
         <div className="flex flex-col gap-4">
           <FreightOverviewCards rows={data} />
+          <FreightPctByWriterChart rows={data} />
           <FreightByWriterTable rows={data} />
           <FreightByVendorTable rows={data} />
           <HighInboundTable rows={data} />

@@ -49,10 +49,23 @@ const columns: ColumnDef<FreightByWriter>[] = [
   },
   {
     accessorKey: "avg_inbound_pct",
-    header: "Avg Inbound %",
+    header: "Avg Inbound % (per row)",
     cell: ({ getValue }) => {
       const v = getValue<number | null>();
       return <span className={numericClass}>{v == null ? "—" : `${Math.round(v)}%`}</span>;
+    },
+    meta: { numeric: true },
+  },
+  {
+    accessorKey: "freight_pct_of_order",
+    header: "Freight % of Order",
+    cell: ({ getValue }) => {
+      const v = getValue<number | null>();
+      return (
+        <span className={numericClass}>
+          {v == null ? "—" : `${v.toFixed(2)}%`}
+        </span>
+      );
     },
     meta: { numeric: true },
   },

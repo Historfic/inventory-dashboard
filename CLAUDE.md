@@ -355,6 +355,7 @@ inventory-dashboard/
 │   │   └── GmroiByBuyLineTable.tsx
 │   ├── freight/
 │   │   ├── FreightOverviewCards.tsx
+│   │   ├── FreightPctByWriterChart.tsx   ← Oliver's "% freight per buyer" KPI
 │   │   ├── FreightByVendorTable.tsx
 │   │   ├── FreightByWriterTable.tsx
 │   │   └── HighInboundTable.tsx
@@ -690,6 +691,8 @@ integer percent, e.g. 159 means 159%). Composite unique:
 ├─────────────────────────────────────────────────────────────────────────┤
 │ 3 overview scorecards: Total Order $, Total Freight $, Avg Inbound %     │
 ├─────────────────────────────────────────────────────────────────────────┤
+│ Freight % of Order — by Writer (bar chart, weighted, desc)               │
+├─────────────────────────────────────────────────────────────────────────┤
 │ By Writer (table)                                                        │
 ├─────────────────────────────────────────────────────────────────────────┤
 │ By Vendor (table, default sort = highest freight $)                      │
@@ -704,15 +707,23 @@ integer percent, e.g. 159 means 159%). Composite unique:
   distinct vendors/writers.
 - `aggregateFreightByVendor` / `aggregateFreightByWriter`: SUM of dollar
   columns, AVG of inbound_pct.
+- **`freight_pct_of_order` (per writer)**: weighted ratio =
+  `SUM(freight) / SUM(order) * 100`. Different from `AVG(inbound_pct)` because
+  it's dollar-weighted, not row-weighted. Oliver explicitly asked for this
+  metric ("% of freight costs for each buyer") — render it as the bar chart
+  above and as a column in the By Writer table.
 
-Dollars are flow quantities → SUM. Inbound % is a per-row ratio → AVG.
+Dollars are flow quantities → SUM. Inbound % is a per-row ratio → AVG (for the
+"per row" metric) OR weighted (for the dollar-weighted metric).
 
 ---
 
 ## 16. Line Counts Page
 
 Lives at `/line-counts`. Reads `latest_line_counts_snapshot` view. Data is
-daily cadence (matches inventory).
+**monthly** cadence — Oliver confirmed: four reports per month (PO, SO,
+Transfer, Direct PO). The fact that the May 2026 filenames happened to use the
+same date string as inventory was coincidental; do not treat as daily.
 
 ### Schema
 
