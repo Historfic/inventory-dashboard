@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -11,9 +12,17 @@ const links = [
 export function Navigation() {
   const pathname = usePathname();
   return (
-    <nav className="border-b border-gray-200 bg-white px-6 py-3">
-      <div className="flex items-center gap-6">
-        <span className="font-semibold text-gray-900">Inventory Dashboard</span>
+    <nav className="border-b border-gray-200 bg-white px-6 py-3 shadow-sm">
+      <div className="flex items-center gap-8">
+        <Link href="/" aria-label="Home">
+          <Image
+            src="/PSLogo-dark.svg"
+            alt="Plumbing Supply"
+            width={220}
+            height={40}
+            priority
+          />
+        </Link>
         <div className="flex gap-1">
           {links.map((link) => {
             const active = pathname === link.href;

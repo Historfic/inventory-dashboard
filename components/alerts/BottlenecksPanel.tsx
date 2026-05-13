@@ -15,7 +15,7 @@ export function BottlenecksPanel({ rows }: { rows: InventoryRow[] }) {
   const buyerGroup = bottlenecks.filter((b) => b.dimension === "buyer");
 
   return (
-    <Card className="bg-white shadow-sm rounded-lg">
+    <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
       <CardHeader>
         <CardTitle>Bottlenecks</CardTitle>
         <p className="text-xs text-muted-foreground">

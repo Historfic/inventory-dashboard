@@ -82,7 +82,7 @@ export function GmroiByBranchTable({ rows }: { rows: GmroiRow[] }) {
   });
 
   return (
-    <Card className="bg-white shadow-sm rounded-lg">
+    <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
       <CardHeader>
         <CardTitle>GMROI by Branch</CardTitle>
         <p className="text-xs text-muted-foreground">

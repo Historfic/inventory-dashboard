@@ -6,7 +6,7 @@ import type { InventoryRow } from "@/lib/types";
 
 export function CriticalFiresCard({ rows }: { rows: InventoryRow[] }) {
   return (
-    <Card className="bg-white shadow-sm rounded-lg">
+    <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
           Critical Fires

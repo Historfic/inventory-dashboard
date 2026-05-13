@@ -21,7 +21,7 @@ export function GmroiOverviewCards({ rows }: { rows: GmroiRow[] }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {cards.map((card) => (
-        <Card key={card.label} className="bg-white shadow-sm rounded-lg">
+        <Card key={card.label} className="bg-white rounded-lg border border-sky-200 shadow-md">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {card.label}

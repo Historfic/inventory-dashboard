@@ -10,7 +10,7 @@ export function AlertsPanel({ rows }: { rows: InventoryRow[] }) {
   const alerts = useMemo(() => evaluateAlerts(rows), [rows]);
 
   return (
-    <Card className="bg-white shadow-sm rounded-lg">
+    <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
       <CardHeader>
         <CardTitle>Warnings &amp; Critical Alerts</CardTitle>
       </CardHeader>

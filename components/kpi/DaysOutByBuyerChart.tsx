@@ -28,7 +28,7 @@ export function DaysOutByBuyerChart({ rows }: { rows: InventoryRow[] }) {
   }, [rows]);
 
   return (
-    <Card className="bg-white shadow-sm rounded-lg">
+    <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
       <CardHeader>
         <CardTitle>Days Out by Buyer (avg stockout %)</CardTitle>
       </CardHeader>

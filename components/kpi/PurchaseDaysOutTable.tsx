@@ -84,7 +84,7 @@ export function PurchaseDaysOutTable({ rows }: { rows: InventoryRow[] }) {
   });
 
   return (
-    <Card className="bg-white shadow-sm rounded-lg">
+    <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
       <CardHeader>
         <CardTitle>Purchase Days Out</CardTitle>
       </CardHeader>

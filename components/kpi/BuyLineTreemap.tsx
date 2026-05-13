@@ -40,7 +40,7 @@ export function BuyLineTreemap({ rows }: { rows: InventoryRow[] }) {
   const max = data.length > 0 ? data[0].size : 0;
 
   return (
-    <Card className="bg-white shadow-sm rounded-lg">
+    <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
       <CardHeader>
         <CardTitle>Buy Lines with No PO Outstanding</CardTitle>
         <p className="text-xs text-muted-foreground">

@@ -9,7 +9,7 @@ export default function GmroiPage() {
   const { data, loading, error, reportDate } = useGmroiData();
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
+    <main className="min-h-screen bg-sky-100 p-8">
       <header className="mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">GMROI Dashboard</h1>
         <p className="text-sm text-gray-500">
@@ -19,15 +19,15 @@ export default function GmroiPage() {
       </header>
 
       {error ? (
-        <div className="rounded-lg border border-red-200 bg-white p-6 text-sm text-red-700 shadow-sm">
+        <div className="rounded-lg border border-red-200 bg-white p-6 text-sm text-red-700 shadow-md">
           Error loading data: {error}
         </div>
       ) : loading ? (
-        <div className="rounded-lg bg-white p-12 text-center text-sm text-gray-500 shadow-sm">
+        <div className="rounded-lg bg-white p-12 text-center text-sm text-gray-500 border border-sky-200 shadow-md">
           Loading…
         </div>
       ) : !data || data.length === 0 ? (
-        <div className="rounded-lg bg-white p-12 text-center text-sm text-gray-500 shadow-sm">
+        <div className="rounded-lg bg-white p-12 text-center text-sm text-gray-500 border border-sky-200 shadow-md">
           No GMROI data available.
         </div>
       ) : (

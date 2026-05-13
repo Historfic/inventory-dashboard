@@ -51,7 +51,7 @@ function DashboardContents() {
   );
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
+    <main className="min-h-screen bg-sky-100 p-8">
       <header className="mb-4 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Inventory Dashboard</h1>
@@ -67,7 +67,7 @@ function DashboardContents() {
         />
       </header>
 
-      <section className="mb-4 flex flex-wrap items-center gap-3 rounded-lg bg-white p-3 shadow-sm">
+      <section className="mb-4 flex flex-wrap items-center gap-3 rounded-lg bg-white p-3 border border-sky-200 shadow-md">
         <BranchFilter
           available={availableBranches}
           selected={filters.branches}
@@ -85,11 +85,11 @@ function DashboardContents() {
       </section>
 
       {error ? (
-        <div className="rounded-lg border border-red-200 bg-white p-6 text-sm text-red-700 shadow-sm">
+        <div className="rounded-lg border border-red-200 bg-white p-6 text-sm text-red-700 shadow-md">
           Error loading data: {error}
         </div>
       ) : loading ? (
-        <div className="rounded-lg bg-white p-12 text-center text-sm text-gray-500 shadow-sm">
+        <div className="rounded-lg bg-white p-12 text-center text-sm text-gray-500 border border-sky-200 shadow-md">
           Loading…
         </div>
       ) : (
