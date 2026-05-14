@@ -27,6 +27,14 @@ export type CompanyTotals = {
   avg_gmroi: number | null;
 };
 
+export type GmroiByBuyer = {
+  buyer: string;
+  avg_turns: number | null;
+  avg_adjusted_margin_pct: number | null;
+  total_annual_cogs_dollars: number;
+  buy_line_count: number;
+};
+
 function average(values: Array<number | null | undefined>): number | null {
   const valid = values.filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
   if (valid.length === 0) return null;
@@ -72,6 +80,31 @@ export function aggregateGmroiByBranch(rows: GmroiRow[]): GmroiByBranch[] {
     total_on_hand_dollars: sum(group.map((r) => r.on_hand_dollars)),
     avg_gmroi: average(group.map((r) => r.gmroi)),
     item_count: group.length,
+  }));
+}
+
+export function aggregateGmroiByBuyer(
+  rows: GmroiRow[],
+  buyerByBuyLine: Map<string, string>
+): GmroiByBuyer[] {
+  const realBranchOnly = rows.filter((r) => r.branch_id !== ALL_BRANCHES);
+  const groups = new Map<string, { rows: GmroiRow[]; buyLines: Set<string> }>();
+  for (const row of realBranchOnly) {
+    const buyer = buyerByBuyLine.get(row.buy_line) ?? "UNASSIGNED";
+    let group = groups.get(buyer);
+    if (!group) {
+      group = { rows: [], buyLines: new Set() };
+      groups.set(buyer, group);
+    }
+    group.rows.push(row);
+    group.buyLines.add(row.buy_line);
+  }
+  return Array.from(groups.entries()).map(([buyer, group]) => ({
+    buyer,
+    avg_turns: average(group.rows.map((r) => r.turns)),
+    avg_adjusted_margin_pct: average(group.rows.map((r) => r.adjusted_margin_pct)),
+    total_annual_cogs_dollars: sum(group.rows.map((r) => r.cogs_dollars)),
+    buy_line_count: group.buyLines.size,
   }));
 }
 

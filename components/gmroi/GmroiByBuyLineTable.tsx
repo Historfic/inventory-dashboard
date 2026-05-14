@@ -98,10 +98,9 @@ export function GmroiByBuyLineTable({ rows }: { rows: GmroiRow[] }) {
         {data.length === 0 ? (
           <div className="py-12 text-center text-sm text-gray-500">No data.</div>
         ) : (
-          <div className="max-h-[560px] overflow-y-auto">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((hg) => (
+          <Table containerClassName="max-h-[560px]">
+            <TableHeader className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(229_231_235)]">
+              {table.getHeaderGroups().map((hg) => (
                   <TableRow key={hg.id}>
                     {hg.headers.map((h) => {
                       const isNumeric = (h.column.columnDef.meta as { numeric?: boolean } | undefined)?.numeric;
@@ -130,9 +129,8 @@ export function GmroiByBuyLineTable({ rows }: { rows: GmroiRow[] }) {
                     ))}
                   </TableRow>
                 ))}
-              </TableBody>
-            </Table>
-          </div>
+            </TableBody>
+          </Table>
         )}
       </CardContent>
     </Card>

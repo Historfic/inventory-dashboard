@@ -16,7 +16,7 @@ import { aggregateLineCountsByWriter } from "@/lib/line-counts-aggregations";
 import type { LineCountRow } from "@/lib/line-counts-types";
 
 const COLORS = {
-  PO: "#0f172a",
+  PO: "#4f46e5",
   SO: "#1d4ed8",
   DIR: "#0891b2",
   TR: "#7c3aed",

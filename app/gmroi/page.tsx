@@ -1,12 +1,15 @@
 "use client";
 
 import { useGmroiData } from "@/hooks/useGmroiData";
+import { useBuyerByBuyLine } from "@/hooks/useBuyerByBuyLine";
 import { GmroiOverviewCards } from "@/components/gmroi/GmroiOverviewCards";
 import { GmroiByBranchTable } from "@/components/gmroi/GmroiByBranchTable";
 import { GmroiByBuyLineTable } from "@/components/gmroi/GmroiByBuyLineTable";
+import { GmroiByBuyerTable } from "@/components/gmroi/GmroiByBuyerTable";
 
 export default function GmroiPage() {
   const { data, loading, error, reportDate } = useGmroiData();
+  const { map: buyerByBuyLine } = useBuyerByBuyLine();
 
   return (
     <main className="min-h-screen bg-sky-100 p-8">
@@ -35,6 +38,7 @@ export default function GmroiPage() {
           <GmroiOverviewCards rows={data} />
           <GmroiByBranchTable rows={data} />
           <GmroiByBuyLineTable rows={data} />
+          <GmroiByBuyerTable rows={data} buyerByBuyLine={buyerByBuyLine} />
         </div>
       )}
     </main>

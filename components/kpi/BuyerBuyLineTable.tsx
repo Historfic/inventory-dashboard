@@ -90,9 +90,8 @@ export function BuyerBuyLineTable({ rows }: { rows: InventoryRow[] }) {
             No data matches the current filters.
           </div>
         ) : (
-          <div className="max-h-[480px] overflow-y-auto">
-            <Table>
-              <TableHeader>
+          <Table containerClassName="max-h-[480px]">
+            <TableHeader className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(229_231_235)]">
                 {table.getHeaderGroups().map((hg) => (
                   <TableRow key={hg.id}>
                     {hg.headers.map((h) => {
@@ -131,9 +130,8 @@ export function BuyerBuyLineTable({ rows }: { rows: InventoryRow[] }) {
                     </TableRow>
                   );
                 })}
-              </TableBody>
-            </Table>
-          </div>
+            </TableBody>
+          </Table>
         )}
       </CardContent>
     </Card>
