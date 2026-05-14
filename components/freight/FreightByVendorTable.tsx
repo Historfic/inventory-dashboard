@@ -31,7 +31,7 @@ const columns: ColumnDef<FreightByVendor>[] = [
   { accessorKey: "vendor_name", header: "Vendor" },
   {
     accessorKey: "line_count",
-    header: "Lines",
+    header: "Line Items",
     cell: ({ getValue }) => <span className={numericClass}>{formatInteger(getValue<number>())}</span>,
     meta: { numeric: true },
   },

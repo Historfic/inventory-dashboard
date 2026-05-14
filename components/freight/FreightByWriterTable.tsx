@@ -31,7 +31,7 @@ const columns: ColumnDef<FreightByWriter>[] = [
   { accessorKey: "writer", header: "Writer" },
   {
     accessorKey: "line_count",
-    header: "Lines",
+    header: "Line Items",
     cell: ({ getValue }) => <span className={numericClass}>{formatInteger(getValue<number>())}</span>,
     meta: { numeric: true },
   },
@@ -96,8 +96,8 @@ export function FreightByWriterTable({ rows }: { rows: InboundFreightRow[] }) {
         {data.length === 0 ? (
           <div className="py-12 text-center text-sm text-gray-500">No data.</div>
         ) : (
-          <Table>
-            <TableHeader>
+          <Table containerClassName="max-h-[480px]">
+            <TableHeader className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(229_231_235)]">
               {table.getHeaderGroups().map((hg) => (
                 <TableRow key={hg.id}>
                   {hg.headers.map((h) => {

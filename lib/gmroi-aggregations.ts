@@ -25,6 +25,8 @@ export type CompanyTotals = {
   total_cogs_dollars: number;
   total_on_hand_dollars: number;
   avg_gmroi: number | null;
+  avg_turns: number | null;
+  avg_adjusted_margin_pct: number | null;
 };
 
 export type GmroiByBuyer = {
@@ -115,5 +117,7 @@ export function companyTotals(rows: GmroiRow[]): CompanyTotals {
     total_cogs_dollars: sum(realBranchOnly.map((r) => r.cogs_dollars)),
     total_on_hand_dollars: sum(realBranchOnly.map((r) => r.on_hand_dollars)),
     avg_gmroi: average(realBranchOnly.map((r) => r.gmroi)),
+    avg_turns: average(realBranchOnly.map((r) => r.turns)),
+    avg_adjusted_margin_pct: average(realBranchOnly.map((r) => r.adjusted_margin_pct)),
   };
 }
