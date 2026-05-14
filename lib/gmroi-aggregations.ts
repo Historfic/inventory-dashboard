@@ -2,10 +2,12 @@ import { ALL_BRANCHES, type GmroiRow } from "./gmroi-types";
 
 export type GmroiByBuyLine = {
   buy_line: string;
-  avg_gmroi: number | null;
+  total_annual_cogs_dollars: number;
+  avg_on_hand_dollars: number | null;
   avg_turns: number | null;
-  avg_markup_pct: number | null;
   avg_adjusted_margin_pct: number | null;
+  avg_gmroi: number | null;
+  avg_markup_pct: number | null;
   item_count: number;
 };
 
@@ -45,10 +47,12 @@ export function aggregateGmroiByBuyLine(rows: GmroiRow[]): GmroiByBuyLine[] {
   }
   return Array.from(groups.entries()).map(([buy_line, group]) => ({
     buy_line,
-    avg_gmroi: average(group.map((r) => r.gmroi)),
+    total_annual_cogs_dollars: sum(group.map((r) => r.cogs_dollars)),
+    avg_on_hand_dollars: average(group.map((r) => r.on_hand_dollars)),
     avg_turns: average(group.map((r) => r.turns)),
-    avg_markup_pct: average(group.map((r) => r.markup_pct)),
     avg_adjusted_margin_pct: average(group.map((r) => r.adjusted_margin_pct)),
+    avg_gmroi: average(group.map((r) => r.gmroi)),
+    avg_markup_pct: average(group.map((r) => r.markup_pct)),
     item_count: group.length,
   }));
 }

@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { aggregateGmroiByBuyLine, type GmroiByBuyLine } from "@/lib/gmroi-aggregations";
-import { formatDecimal, formatInteger } from "@/lib/format";
+import { formatDecimal, formatDollars } from "@/lib/format";
 import type { GmroiRow } from "@/lib/gmroi-types";
 
 const numericClass = "text-right tabular-nums";
@@ -27,13 +27,19 @@ const numericClass = "text-right tabular-nums";
 const columns: ColumnDef<GmroiByBuyLine>[] = [
   { accessorKey: "buy_line", header: "Buy Line" },
   {
-    accessorKey: "avg_gmroi",
-    header: "Avg GMROI",
+    accessorKey: "total_annual_cogs_dollars",
+    header: "Annual COGS$",
+    cell: ({ getValue }) => <span className={numericClass}>{formatDollars(getValue<number>())}</span>,
+    meta: { numeric: true },
+  },
+  {
+    accessorKey: "avg_on_hand_dollars",
+    header: "Avg $OnHand",
     cell: ({ getValue }) => (
       <span className={numericClass}>
         {(() => {
           const v = getValue<number | null>();
-          return v == null ? "—" : formatInteger(v);
+          return v == null ? "—" : formatDollars(v);
         })()}
       </span>
     ),
@@ -41,7 +47,7 @@ const columns: ColumnDef<GmroiByBuyLine>[] = [
   },
   {
     accessorKey: "avg_turns",
-    header: "Avg Turns",
+    header: "Turns",
     cell: ({ getValue }) => (
       <span className={numericClass}>
         {(() => {
@@ -53,21 +59,8 @@ const columns: ColumnDef<GmroiByBuyLine>[] = [
     meta: { numeric: true },
   },
   {
-    accessorKey: "avg_markup_pct",
-    header: "Avg Markup %",
-    cell: ({ getValue }) => (
-      <span className={numericClass}>
-        {(() => {
-          const v = getValue<number | null>();
-          return v == null ? "—" : `${formatInteger(v)}%`;
-        })()}
-      </span>
-    ),
-    meta: { numeric: true },
-  },
-  {
     accessorKey: "avg_adjusted_margin_pct",
-    header: "Avg Adj Margin %",
+    header: "Adjusted Margin%",
     cell: ({ getValue }) => (
       <span className={numericClass}>
         {(() => {
@@ -84,7 +77,7 @@ export function GmroiByBuyLineTable({ rows }: { rows: GmroiRow[] }) {
   const data = useMemo(() => aggregateGmroiByBuyLine(rows), [rows]);
 
   const [sorting, setSorting] = useState<SortingState>([
-    { id: "avg_gmroi", desc: true },
+    { id: "total_annual_cogs_dollars", desc: true },
   ]);
 
   const table = useReactTable({
