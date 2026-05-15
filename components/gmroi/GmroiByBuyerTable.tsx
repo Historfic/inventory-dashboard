@@ -101,7 +101,7 @@ export function GmroiByBuyerTable({ rows, buyerByBuyLine }: Props) {
       <CardHeader>
         <CardTitle>GMROI by Buyer</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Buyer derived from the latest inventory snapshot&apos;s buy_line → buyer mapping.
+          Buyer from the monthly buyer-assignment report (most-common buyer per buy_line).
         </p>
       </CardHeader>
       <CardContent>

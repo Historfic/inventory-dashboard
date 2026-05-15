@@ -4,6 +4,16 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPages } from "@/lib/fetchAllPages";
 
+// Reads buy_line → buyer from latest_buy_line_buyers (the dedicated assignment
+// report Oliver maintains in Drive, ingested by the n8n Buy Line branch).
+//
+// Each buy_line has up to 9 rows (one per branch). Most buy_lines have a
+// single buyer across all branches; a few have per-branch overrides
+// (e.g. M-JONES: SEFAC for all branches except br8 = RIZZAD). For the
+// dashboard's "single buyer per buy_line" need (GMROI All-Branches rollup
+// views), we pick the most-common buyer per buy_line, preferring assigned
+// over UNASSIGNED on ties.
+
 type Row = { buy_line: string | null; buyer: string | null };
 
 type State = {
@@ -24,7 +34,7 @@ export function useBuyerByBuyLine() {
       try {
         const rows = await fetchAllPages<Row>((from, to) =>
           supabase
-            .from("latest_inventory_snapshot")
+            .from("latest_buy_line_buyers")
             .select("buy_line, buyer")
             .range(from, to)
         );
