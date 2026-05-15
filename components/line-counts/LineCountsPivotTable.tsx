@@ -59,7 +59,7 @@ export function LineCountsPivotTable({ rows }: { rows: LineCountRow[] }) {
   return (
     <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
       <CardHeader>
-        <CardTitle>Lines by Writer (pivot)</CardTitle>
+        <CardTitle>Lines by Writer</CardTitle>
       </CardHeader>
       <CardContent>
         {data.length === 0 ? (
