@@ -5,10 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const links = [
-  { href: "/", label: "Inventory" },
-  { href: "/gmroi", label: "GMROI" },
-  { href: "/freight", label: "Inbound Freight" },
+  { href: "/", label: "Days Out" },
+  { href: "/gmroi", label: "Turns" },
   { href: "/line-counts", label: "Line Counts" },
+  { href: "/freight", label: "Inbound Freight" },
 ];
 
 export function Navigation() {

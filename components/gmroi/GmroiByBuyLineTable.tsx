@@ -26,10 +26,18 @@ const numericClass = "text-right tabular-nums";
 
 const columns: ColumnDef<GmroiByBuyLine>[] = [
   { accessorKey: "buy_line", header: "Buy Line" },
+  { accessorKey: "buyer", header: "Buyer" },
   {
-    accessorKey: "total_annual_cogs_dollars",
+    accessorKey: "annual_cogs_dollars",
     header: "Annual COGS$",
-    cell: ({ getValue }) => <span className={numericClass}>{formatDollars(getValue<number>())}</span>,
+    cell: ({ getValue }) => (
+      <span className={numericClass}>
+        {(() => {
+          const v = getValue<number | null>();
+          return v == null ? "—" : formatDollars(v);
+        })()}
+      </span>
+    ),
     meta: { numeric: true },
   },
   {
@@ -46,7 +54,7 @@ const columns: ColumnDef<GmroiByBuyLine>[] = [
     meta: { numeric: true },
   },
   {
-    accessorKey: "avg_turns",
+    accessorKey: "turns",
     header: "Turns",
     cell: ({ getValue }) => (
       <span className={numericClass}>
@@ -59,7 +67,7 @@ const columns: ColumnDef<GmroiByBuyLine>[] = [
     meta: { numeric: true },
   },
   {
-    accessorKey: "avg_adjusted_margin_pct",
+    accessorKey: "adjusted_margin_pct",
     header: "Adjusted Margin%",
     cell: ({ getValue }) => (
       <span className={numericClass}>
@@ -73,11 +81,19 @@ const columns: ColumnDef<GmroiByBuyLine>[] = [
   },
 ];
 
-export function GmroiByBuyLineTable({ rows }: { rows: GmroiRow[] }) {
-  const data = useMemo(() => aggregateGmroiByBuyLine(rows), [rows]);
+type Props = {
+  rows: GmroiRow[];
+  buyerByBuyLine: Map<string, string> | null;
+};
+
+export function GmroiByBuyLineTable({ rows, buyerByBuyLine }: Props) {
+  const data = useMemo(
+    () => (buyerByBuyLine ? aggregateGmroiByBuyLine(rows, buyerByBuyLine) : []),
+    [rows, buyerByBuyLine]
+  );
 
   const [sorting, setSorting] = useState<SortingState>([
-    { id: "total_annual_cogs_dollars", desc: true },
+    { id: "annual_cogs_dollars", desc: true },
   ]);
 
   const table = useReactTable({
@@ -95,7 +111,9 @@ export function GmroiByBuyLineTable({ rows }: { rows: GmroiRow[] }) {
         <CardTitle>GMROI by Buy Line</CardTitle>
       </CardHeader>
       <CardContent>
-        {data.length === 0 ? (
+        {!buyerByBuyLine ? (
+          <div className="py-8 text-center text-sm text-gray-500">Loading buyer mapping…</div>
+        ) : data.length === 0 ? (
           <div className="py-12 text-center text-sm text-gray-500">No data.</div>
         ) : (
           <Table containerClassName="max-h-[560px]">

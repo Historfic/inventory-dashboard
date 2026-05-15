@@ -304,8 +304,6 @@ For v1 the dashboard only uses `latest_inventory_snapshot`, so this is informati
 ├─────────────────────────────────────────────────────────────────────────┤
 │ Buyer Summary │ Buyer × Buy Line  (both tables, both cross-filterable)   │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ Treemap: Buy Lines with No PO Outstanding (cell click = filter)          │
-├─────────────────────────────────────────────────────────────────────────┤
 │ Purchase Days Out (extended granular: +buyer +buy_line +op +hits)        │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -314,7 +312,7 @@ For v1 the dashboard only uses `latest_inventory_snapshot`, so this is informati
 
 - Clicking a **buyer** in any KPI element (Bar chart bar, Buyer Summary row,
   Bottlenecks panel) → filters all downstream views to that buyer.
-- Clicking a **buy_line** (Buyer × Buy Line row, Treemap cell, Bottlenecks panel)
+- Clicking a **buy_line** (Buyer × Buy Line row, Bottlenecks panel)
   → intersects with the current buyer filter (or stands alone if no buyer set).
 - Clicking the same item again → deselects.
 - "Clear all" in the active-filters bar → resets every filter.
@@ -369,8 +367,7 @@ inventory-dashboard/
 │   │   ├── DaysOutByBuyerChart.tsx
 │   │   ├── BuyerSummaryTable.tsx
 │   │   ├── BuyerBuyLineTable.tsx
-│   │   ├── PurchaseDaysOutTable.tsx   ← extended granular
-│   │   └── BuyLineTreemap.tsx
+│   │   └── PurchaseDaysOutTable.tsx   ← extended granular
 │   ├── alerts/
 │   │   ├── AlertsPanel.tsx
 │   │   ├── BottlenecksPanel.tsx
@@ -508,7 +505,6 @@ Dashboard runs at `http://localhost:3000`.
 - Bar chart: `DaysOutByBuyerChart` (X=buyer, Y=avg stockout_pct, descending).
 - Tables: `BuyerSummaryTable`, `BuyerBuyLineTable`, `PurchaseDaysOutTable`
   (the last is the extended granular: +buyer +buy_line +op +hits).
-- Treemap: `BuyLineTreemap` (items with `on_po = 0`).
 - All elements click-to-filter via `useFilterState`.
 
 ### Phase 6 — Alerts & Bottlenecks
@@ -670,19 +666,40 @@ the metrics are financial ratios rather than stock-day counts.
 
 ### "All Branches" rollup row handling
 
-The ERP includes a per-buy-line "All Branches" rollup row. We store it (so we
-match the source-of-truth report Todd sees printed) but filter it out before
-aggregating in the dashboard so totals don't double-count. The filter lives in
-`lib/gmroi-aggregations.ts`.
+The ERP includes a per-buy-line "All Branches" rollup row. The dashboard now
+**relies on those rollup rows** for the by-Buy-Line table, the by-Buyer table,
+and the four overview scorecards — they all read **only** rows where
+`branch_id === "All Branches"`. The ERP's pre-computed company-wide values are
+the source of truth; we don't sum or average per-branch rows in JS for those
+views.
+
+The by-Branch table is the exception: it reads only per-branch rows
+(`branch_id !== "All Branches"`) and aggregates SUM/AVG across branches.
+
+Pipeline-side: the cleaner stores All-Branches rows verbatim — no special
+handling required. The filter logic lives in `lib/gmroi-aggregations.ts`
+(`rollupOnly` and `perBranchOnly` helpers).
+
+If the "All Branches" rows are missing from a snapshot (data quality issue),
+the by-Buy-Line / by-Buyer / scorecards will be empty. There is no fallback
+to per-branch aggregation by design — wrong data is worse than no data.
 
 ### Aggregation rules
 
-- `aggregateGmroiByBuyLine`: AVG of GMROI, turns, markup_pct, adjusted_margin_pct.
-- `aggregateGmroiByBranch`: SUM of GP$, COGS$, $OnHand; AVG of GMROI.
-- `companyTotals`: SUM of GP$, COGS$, $OnHand; AVG of GMROI.
+- `aggregateGmroiByBuyLine(rows, buyerByBuyLine)`: returns one row per
+  All-Branches rollup row. No aggregation across branches in JS — the rollup
+  values come straight from the ERP. Buyer is joined from the inventory
+  snapshot via the buy_line → buyer map.
+- `aggregateGmroiByBranch(rows)`: per-branch only. SUM cogs_dollars + SUM
+  on_hand_dollars; AVG turns + AVG adjusted_margin_pct.
+- `aggregateGmroiByBuyer(rows, buyerByBuyLine)`: filters to All-Branches rows,
+  groups by buyer via the map. SUM cogs_dollars + SUM on_hand_dollars; AVG
+  turns + AVG adjusted_margin_pct. COUNT distinct buy_lines.
+- `companyTotals(rows)`: All-Branches rows only. SUM cogs_dollars + SUM
+  on_hand_dollars; AVG turns + AVG adjusted_margin_pct.
 
-GMROI is a ratio — AVG, not SUM. Markup% and Adjusted Margin% are also
-percentages → AVG. Dollar columns are flow quantities → SUM is appropriate.
+Adjusted Margin% and Turns are ratios → AVG. COGS$ and $OnHand are flow
+quantities → SUM.
 
 ---
 

@@ -36,9 +36,9 @@ export default function GmroiPage() {
       ) : (
         <div className="flex flex-col gap-4">
           <GmroiOverviewCards rows={data} />
-          <GmroiByBranchTable rows={data} />
-          <GmroiByBuyLineTable rows={data} />
           <GmroiByBuyerTable rows={data} buyerByBuyLine={buyerByBuyLine} />
+          <GmroiByBuyLineTable rows={data} buyerByBuyLine={buyerByBuyLine} />
+          <GmroiByBranchTable rows={data} />
         </div>
       )}
     </main>

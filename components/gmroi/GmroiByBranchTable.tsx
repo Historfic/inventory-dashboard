@@ -19,48 +19,60 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { aggregateGmroiByBranch, type GmroiByBranch } from "@/lib/gmroi-aggregations";
-import { formatDollars, formatInteger } from "@/lib/format";
+import { formatDecimal, formatDollars } from "@/lib/format";
 import type { GmroiRow } from "@/lib/gmroi-types";
 
 const numericClass = "text-right tabular-nums";
 
 const columns: ColumnDef<GmroiByBranch>[] = [
-  { accessorKey: "branch_id", header: "Branch" },
   {
-    accessorKey: "total_gp_dollars",
-    header: "GP $",
-    cell: ({ getValue }) => <span className={numericClass}>{formatDollars(getValue<number>())}</span>,
-    meta: { numeric: true },
+    accessorKey: "branch_id",
+    header: "Branch",
+    sortingFn: (a, b) => {
+      const av = Number(a.getValue("branch_id"));
+      const bv = Number(b.getValue("branch_id"));
+      if (Number.isNaN(av) && Number.isNaN(bv)) return 0;
+      if (Number.isNaN(av)) return 1;
+      if (Number.isNaN(bv)) return -1;
+      return av - bv;
+    },
   },
   {
-    accessorKey: "total_cogs_dollars",
-    header: "COGS $",
+    accessorKey: "total_annual_cogs_dollars",
+    header: "Annual COGS$",
     cell: ({ getValue }) => <span className={numericClass}>{formatDollars(getValue<number>())}</span>,
     meta: { numeric: true },
   },
   {
     accessorKey: "total_on_hand_dollars",
-    header: "$ On Hand",
+    header: "Avg $OnHand",
     cell: ({ getValue }) => <span className={numericClass}>{formatDollars(getValue<number>())}</span>,
     meta: { numeric: true },
   },
   {
-    accessorKey: "avg_gmroi",
-    header: "Avg GMROI",
+    accessorKey: "avg_turns",
+    header: "Turns",
     cell: ({ getValue }) => (
       <span className={numericClass}>
         {(() => {
           const v = getValue<number | null>();
-          return v == null ? "—" : formatInteger(v);
+          return v == null ? "—" : formatDecimal(v, 2);
         })()}
       </span>
     ),
     meta: { numeric: true },
   },
   {
-    accessorKey: "item_count",
-    header: "Buy Lines",
-    cell: ({ getValue }) => <span className={numericClass}>{formatInteger(getValue<number>())}</span>,
+    accessorKey: "avg_adjusted_margin_pct",
+    header: "Adjusted Margin%",
+    cell: ({ getValue }) => (
+      <span className={numericClass}>
+        {(() => {
+          const v = getValue<number | null>();
+          return v == null ? "—" : `${formatDecimal(v, 2)}%`;
+        })()}
+      </span>
+    ),
     meta: { numeric: true },
   },
 ];
@@ -69,7 +81,7 @@ export function GmroiByBranchTable({ rows }: { rows: GmroiRow[] }) {
   const data = useMemo(() => aggregateGmroiByBranch(rows), [rows]);
 
   const [sorting, setSorting] = useState<SortingState>([
-    { id: "total_gp_dollars", desc: true },
+    { id: "branch_id", desc: false },
   ]);
 
   const table = useReactTable({

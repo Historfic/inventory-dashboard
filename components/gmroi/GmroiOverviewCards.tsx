@@ -9,7 +9,7 @@ export function GmroiOverviewCards({ rows }: { rows: GmroiRow[] }) {
   const totals = companyTotals(rows);
 
   const cards = [
-    { label: "Annual COGS$", value: formatDollars(totals.total_cogs_dollars) },
+    { label: "Annual COGS$", value: formatDollars(totals.total_annual_cogs_dollars) },
     { label: "Avg $OnHand", value: formatDollars(totals.total_on_hand_dollars) },
     {
       label: "Turns",

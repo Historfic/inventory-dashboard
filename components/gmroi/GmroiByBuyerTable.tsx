@@ -27,6 +27,24 @@ const numericClass = "text-right tabular-nums";
 const columns: ColumnDef<GmroiByBuyer>[] = [
   { accessorKey: "buyer", header: "Buyer" },
   {
+    accessorKey: "buy_line_count",
+    header: "Buy Lines",
+    cell: ({ getValue }) => <span className={numericClass}>{formatInteger(getValue<number>())}</span>,
+    meta: { numeric: true },
+  },
+  {
+    accessorKey: "total_annual_cogs_dollars",
+    header: "Annual COGS$",
+    cell: ({ getValue }) => <span className={numericClass}>{formatDollars(getValue<number>())}</span>,
+    meta: { numeric: true },
+  },
+  {
+    accessorKey: "total_on_hand_dollars",
+    header: "Avg $OnHand",
+    cell: ({ getValue }) => <span className={numericClass}>{formatDollars(getValue<number>())}</span>,
+    meta: { numeric: true },
+  },
+  {
     accessorKey: "avg_turns",
     header: "Turns",
     cell: ({ getValue }) => (
@@ -52,18 +70,6 @@ const columns: ColumnDef<GmroiByBuyer>[] = [
     ),
     meta: { numeric: true },
   },
-  {
-    accessorKey: "total_annual_cogs_dollars",
-    header: "Annual COGS$",
-    cell: ({ getValue }) => <span className={numericClass}>{formatDollars(getValue<number>())}</span>,
-    meta: { numeric: true },
-  },
-  {
-    accessorKey: "buy_line_count",
-    header: "Buy Lines",
-    cell: ({ getValue }) => <span className={numericClass}>{formatInteger(getValue<number>())}</span>,
-    meta: { numeric: true },
-  },
 ];
 
 type Props = {
@@ -78,7 +84,7 @@ export function GmroiByBuyerTable({ rows, buyerByBuyLine }: Props) {
   );
 
   const [sorting, setSorting] = useState<SortingState>([
-    { id: "avg_turns", desc: true },
+    { id: "total_annual_cogs_dollars", desc: true },
   ]);
 
   const table = useReactTable({

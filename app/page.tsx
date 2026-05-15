@@ -14,7 +14,6 @@ import { DaysOutByBuyerChart } from "@/components/kpi/DaysOutByBuyerChart";
 import { BuyerSummaryTable } from "@/components/kpi/BuyerSummaryTable";
 import { BuyerBuyLineTable } from "@/components/kpi/BuyerBuyLineTable";
 import { PurchaseDaysOutTable } from "@/components/kpi/PurchaseDaysOutTable";
-import { BuyLineTreemap } from "@/components/kpi/BuyLineTreemap";
 import { AlertsPanel } from "@/components/alerts/AlertsPanel";
 import { BottlenecksPanel } from "@/components/alerts/BottlenecksPanel";
 import { ExecutiveBriefCard } from "@/components/ai/ExecutiveBriefCard";
@@ -116,10 +115,6 @@ function DashboardContents() {
           <section className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <BuyerSummaryTable rows={filteredRows} />
             <BuyerBuyLineTable rows={filteredRows} />
-          </section>
-
-          <section className="mb-4">
-            <BuyLineTreemap rows={filteredRows} />
           </section>
 
           <section>
