@@ -45,7 +45,7 @@ const columns: ColumnDef<GmroiByBuyer>[] = [
     meta: { numeric: true },
   },
   {
-    accessorKey: "avg_turns",
+    accessorKey: "weighted_turns",
     header: "Turns",
     cell: ({ getValue }) => (
       <span className={numericClass}>

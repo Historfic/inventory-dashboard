@@ -13,7 +13,7 @@ export function GmroiOverviewCards({ rows }: { rows: GmroiRow[] }) {
     { label: "Avg $OnHand", value: formatDollars(totals.total_on_hand_dollars) },
     {
       label: "Turns",
-      value: totals.avg_turns == null ? "—" : formatDecimal(totals.avg_turns, 2),
+      value: totals.weighted_turns == null ? "—" : formatDecimal(totals.weighted_turns, 2),
     },
     {
       label: "Adjusted Margin%",

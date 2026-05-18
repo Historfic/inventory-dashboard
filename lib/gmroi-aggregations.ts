@@ -1,5 +1,11 @@
 import { ALL_BRANCHES, type GmroiRow } from "./gmroi-types";
 
+// Field mapping note (verified against Oliver's CSV on 2026-05-15):
+//   CSV "Actual COGS$"  → DB cogs_dollars
+//   CSV "Annual COGS$"  → DB cogs_dollars_adjusted   ← what the dashboard displays
+//   CSV "Actual GP$"    → DB gp_dollars
+//   CSV "Annual GP$"    → DB gp_dollars_adjusted
+
 export type GmroiByBuyLine = {
   buy_line: string;
   buyer: string;
@@ -13,14 +19,14 @@ export type GmroiByBranch = {
   branch_id: string;
   total_annual_cogs_dollars: number;
   total_on_hand_dollars: number;
-  avg_turns: number | null;
+  weighted_turns: number | null;
   avg_adjusted_margin_pct: number | null;
 };
 
 export type CompanyTotals = {
   total_annual_cogs_dollars: number;
   total_on_hand_dollars: number;
-  avg_turns: number | null;
+  weighted_turns: number | null;
   avg_adjusted_margin_pct: number | null;
 };
 
@@ -29,7 +35,7 @@ export type GmroiByBuyer = {
   buy_line_count: number;
   total_annual_cogs_dollars: number;
   total_on_hand_dollars: number;
-  avg_turns: number | null;
+  weighted_turns: number | null;
   avg_adjusted_margin_pct: number | null;
 };
 
@@ -41,6 +47,13 @@ function average(values: Array<number | null | undefined>): number | null {
 
 function sum(values: Array<number | null | undefined>): number {
   return values.reduce<number>((a, b) => a + (typeof b === "number" ? b : 0), 0);
+}
+
+function weightedTurns(rows: GmroiRow[]): number | null {
+  const cogs = sum(rows.map((r) => r.cogs_dollars_adjusted));
+  const onHand = sum(rows.map((r) => r.on_hand_dollars));
+  if (onHand === 0) return null;
+  return cogs / onHand;
 }
 
 function rollupOnly(rows: GmroiRow[]): GmroiRow[] {
@@ -58,7 +71,7 @@ export function aggregateGmroiByBuyLine(
   return rollupOnly(rows).map((row) => ({
     buy_line: row.buy_line,
     buyer: buyerByBuyLine.get(row.buy_line) ?? "UNASSIGNED",
-    annual_cogs_dollars: row.cogs_dollars,
+    annual_cogs_dollars: row.cogs_dollars_adjusted,
     avg_on_hand_dollars: row.on_hand_dollars,
     turns: row.turns,
     adjusted_margin_pct: row.adjusted_margin_pct,
@@ -74,9 +87,9 @@ export function aggregateGmroiByBranch(rows: GmroiRow[]): GmroiByBranch[] {
   }
   return Array.from(groups.entries()).map(([branch_id, group]) => ({
     branch_id,
-    total_annual_cogs_dollars: sum(group.map((r) => r.cogs_dollars)),
+    total_annual_cogs_dollars: sum(group.map((r) => r.cogs_dollars_adjusted)),
     total_on_hand_dollars: sum(group.map((r) => r.on_hand_dollars)),
-    avg_turns: average(group.map((r) => r.turns)),
+    weighted_turns: weightedTurns(group),
     avg_adjusted_margin_pct: average(group.map((r) => r.adjusted_margin_pct)),
   }));
 }
@@ -99,9 +112,9 @@ export function aggregateGmroiByBuyer(
   return Array.from(groups.entries()).map(([buyer, group]) => ({
     buyer,
     buy_line_count: group.buyLines.size,
-    total_annual_cogs_dollars: sum(group.rows.map((r) => r.cogs_dollars)),
+    total_annual_cogs_dollars: sum(group.rows.map((r) => r.cogs_dollars_adjusted)),
     total_on_hand_dollars: sum(group.rows.map((r) => r.on_hand_dollars)),
-    avg_turns: average(group.rows.map((r) => r.turns)),
+    weighted_turns: weightedTurns(group.rows),
     avg_adjusted_margin_pct: average(group.rows.map((r) => r.adjusted_margin_pct)),
   }));
 }
@@ -109,9 +122,9 @@ export function aggregateGmroiByBuyer(
 export function companyTotals(rows: GmroiRow[]): CompanyTotals {
   const rollup = rollupOnly(rows);
   return {
-    total_annual_cogs_dollars: sum(rollup.map((r) => r.cogs_dollars)),
+    total_annual_cogs_dollars: sum(rollup.map((r) => r.cogs_dollars_adjusted)),
     total_on_hand_dollars: sum(rollup.map((r) => r.on_hand_dollars)),
-    avg_turns: average(rollup.map((r) => r.turns)),
+    weighted_turns: weightedTurns(rollup),
     avg_adjusted_margin_pct: average(rollup.map((r) => r.adjusted_margin_pct)),
   };
 }
