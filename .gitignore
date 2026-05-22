@@ -45,3 +45,7 @@ next-env.d.ts
 .claude/
 .agents/
 skills-lock.json
+
+# local invoices (personal — not part of the app)
+invoice-*.html
+invoice-*.pdf

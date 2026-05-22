@@ -664,42 +664,62 @@ the metrics are financial ratios rather than stock-day counts.
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### "All Branches" rollup row handling
+### Rollup row handling
 
-The ERP includes a per-buy-line "All Branches" rollup row. The dashboard now
-**relies on those rollup rows** for the by-Buy-Line table, the by-Buyer table,
-and the four overview scorecards — they all read **only** rows where
-`branch_id === "All Branches"`. The ERP's pre-computed company-wide values are
-the source of truth; we don't sum or average per-branch rows in JS for those
-views.
+The `branch_gmroi_reports` table contains two kinds of rollup rows from the ERP
+that the dashboard relies on:
 
-The by-Branch table is the exception: it reads only per-branch rows
-(`branch_id !== "All Branches"`) and aggregates SUM/AVG across branches.
+1. **Per-buy-line "All Branches" rollup rows** — one per buy_line, with
+   `branch_id === "All Branches"`. These are company-wide values for that
+   buy_line. Used by the by-Buy-Line and by-Buyer tables.
+2. **"Grand Totals" rows** — `buy_line === "Grand Totals"`. Ten of them: nine
+   per-branch (one for each `branch_id`) plus one with `branch_id === "All
+   Branches"` for the company-wide total. These are the ERP's pre-computed
+   per-branch and company-wide totals with dollar-weighted Turns and
+   ERP-computed Adjusted Margin% — exactly what the by-Branch table and the
+   four overview scorecards display.
 
-Pipeline-side: the cleaner stores All-Branches rows verbatim — no special
-handling required. The filter logic lives in `lib/gmroi-aggregations.ts`
-(`rollupOnly` and `perBranchOnly` helpers).
+Routing by view:
 
-If the "All Branches" rows are missing from a snapshot (data quality issue),
-the by-Buy-Line / by-Buyer / scorecards will be empty. There is no fallback
-to per-branch aggregation by design — wrong data is worse than no data.
+- **by-Branch table** → reads the 9 per-branch Grand Totals rows
+  (`buy_line === "Grand Totals" AND branch_id !== "All Branches"`). No JS
+  aggregation. Each Grand Total row maps to one display row.
+- **Scorecards** → reads the single All-Branches Grand Total row
+  (`buy_line === "Grand Totals" AND branch_id === "All Branches"`).
+- **by-Buy-Line table** → reads per-buy-line "All Branches" rollup rows,
+  excluding the Grand Totals row.
+- **by-Buyer table** → groups those same per-buy-line rollups by buyer (via
+  the inventory snapshot's buy_line→buyer map), sums dollars, averages
+  ratios.
+
+Pipeline-side: the cleaner stores all rows verbatim — no special handling.
+The filter logic lives in `lib/gmroi-aggregations.ts` (`isGrandTotal()` and
+`buyLineRollupRows()` helpers).
+
+If a snapshot is missing the Grand Totals rows, by-Branch and the scorecards
+go empty. If the per-buy-line "All Branches" rollups are missing, the
+by-Buy-Line and by-Buyer tables go empty. There is no fallback to per-branch
+JS aggregation by design — wrong data is worse than no data.
 
 ### Aggregation rules
 
 - `aggregateGmroiByBuyLine(rows, buyerByBuyLine)`: returns one row per
-  All-Branches rollup row. No aggregation across branches in JS — the rollup
-  values come straight from the ERP. Buyer is joined from the inventory
-  snapshot via the buy_line → buyer map.
-- `aggregateGmroiByBranch(rows)`: per-branch only. SUM cogs_dollars + SUM
-  on_hand_dollars; AVG turns + AVG adjusted_margin_pct.
-- `aggregateGmroiByBuyer(rows, buyerByBuyLine)`: filters to All-Branches rows,
-  groups by buyer via the map. SUM cogs_dollars + SUM on_hand_dollars; AVG
-  turns + AVG adjusted_margin_pct. COUNT distinct buy_lines.
-- `companyTotals(rows)`: All-Branches rows only. SUM cogs_dollars + SUM
-  on_hand_dollars; AVG turns + AVG adjusted_margin_pct.
+  per-buy-line "All Branches" rollup. No aggregation; values come straight
+  from the ERP. Buyer is joined via the buy_line→buyer map.
+- `aggregateGmroiByBranch(rows)`: per-branch Grand Totals rows only. No
+  aggregation; each output row maps from one ERP-computed Grand Totals row.
+  Turns and Adj Margin% are the ERP's pre-computed dollar-weighted values.
+- `aggregateGmroiByBuyer(rows, buyerByBuyLine)`: per-buy-line "All Branches"
+  rollups grouped by buyer. SUM Annual COGS$ + SUM Avg $OnHand; weighted
+  Turns = SUM(cogs_adj)/SUM(onhand); AVG adjusted_margin_pct (pending Oliver's
+  formula for the better calc). COUNT distinct buy_lines.
+- `companyTotals(rows)`: the single "Grand Totals / All Branches" row. No
+  aggregation.
 
-Adjusted Margin% and Turns are ratios → AVG. COGS$ and $OnHand are flow
-quantities → SUM.
+Adjusted Margin% on by-Branch and scorecards comes straight from the ERP's
+Grand Totals row — matches Oliver's sheet exactly. The by-Buyer table is the
+only place still doing a simple AVG of adjusted_margin_pct in JS; pending
+Oliver's actual formula.
 
 ---
 

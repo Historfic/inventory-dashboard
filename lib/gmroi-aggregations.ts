@@ -5,6 +5,17 @@ import { ALL_BRANCHES, type GmroiRow } from "./gmroi-types";
 //   CSV "Annual COGS$"  → DB cogs_dollars_adjusted   ← what the dashboard displays
 //   CSV "Actual GP$"    → DB gp_dollars
 //   CSV "Annual GP$"    → DB gp_dollars_adjusted
+//
+// Grand Totals row handling (verified 2026-05-23):
+//   The ERP report now includes "Grand Totals" rows at the bottom — one per
+//   branch plus one for "All Branches". These rows have buy_line === 'Grand
+//   Totals' and are the ERP's pre-computed totals (Turns and Adj Margin% are
+//   already dollar-weighted on those rows). The dashboard reads them directly
+//   for the by-Branch table and the four overview scorecards, so the numbers
+//   match Oliver's sheet exactly. The by-Buy-Line and by-Buyer tables still
+//   use the per-buy-line "All Branches" rollup rows (excluding Grand Totals).
+
+const GRAND_TOTALS_LABEL = "Grand Totals";
 
 export type GmroiByBuyLine = {
   buy_line: string;
@@ -56,19 +67,21 @@ function weightedTurns(rows: GmroiRow[]): number | null {
   return cogs / onHand;
 }
 
-function rollupOnly(rows: GmroiRow[]): GmroiRow[] {
-  return rows.filter((r) => r.branch_id === ALL_BRANCHES);
+function isGrandTotal(r: GmroiRow): boolean {
+  return r.buy_line === GRAND_TOTALS_LABEL;
 }
 
-function perBranchOnly(rows: GmroiRow[]): GmroiRow[] {
-  return rows.filter((r) => r.branch_id !== ALL_BRANCHES);
+// Per-buy-line "All Branches" rollup rows (one per buy_line), excluding the
+// Grand Totals rollup. Used by by-Buy-Line and by-Buyer tables.
+function buyLineRollupRows(rows: GmroiRow[]): GmroiRow[] {
+  return rows.filter((r) => r.branch_id === ALL_BRANCHES && !isGrandTotal(r));
 }
 
 export function aggregateGmroiByBuyLine(
   rows: GmroiRow[],
   buyerByBuyLine: Map<string, string>
 ): GmroiByBuyLine[] {
-  return rollupOnly(rows).map((row) => ({
+  return buyLineRollupRows(rows).map((row) => ({
     buy_line: row.buy_line,
     buyer: buyerByBuyLine.get(row.buy_line) ?? "UNASSIGNED",
     annual_cogs_dollars: row.cogs_dollars_adjusted,
@@ -78,20 +91,19 @@ export function aggregateGmroiByBuyLine(
   }));
 }
 
+// Per-branch Grand Totals rows (one per branch). The ERP pre-computes Turns
+// and Adj Margin% with the correct dollar weighting, so we display each row
+// directly with no JS aggregation.
 export function aggregateGmroiByBranch(rows: GmroiRow[]): GmroiByBranch[] {
-  const groups = new Map<string, GmroiRow[]>();
-  for (const row of perBranchOnly(rows)) {
-    const key = row.branch_id;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(row);
-  }
-  return Array.from(groups.entries()).map(([branch_id, group]) => ({
-    branch_id,
-    total_annual_cogs_dollars: sum(group.map((r) => r.cogs_dollars_adjusted)),
-    total_on_hand_dollars: sum(group.map((r) => r.on_hand_dollars)),
-    weighted_turns: weightedTurns(group),
-    avg_adjusted_margin_pct: average(group.map((r) => r.adjusted_margin_pct)),
-  }));
+  return rows
+    .filter((r) => isGrandTotal(r) && r.branch_id !== ALL_BRANCHES)
+    .map((row) => ({
+      branch_id: row.branch_id,
+      total_annual_cogs_dollars: row.cogs_dollars_adjusted ?? 0,
+      total_on_hand_dollars: row.on_hand_dollars ?? 0,
+      weighted_turns: row.turns,
+      avg_adjusted_margin_pct: row.adjusted_margin_pct,
+    }));
 }
 
 export function aggregateGmroiByBuyer(
@@ -99,7 +111,7 @@ export function aggregateGmroiByBuyer(
   buyerByBuyLine: Map<string, string>
 ): GmroiByBuyer[] {
   const groups = new Map<string, { rows: GmroiRow[]; buyLines: Set<string> }>();
-  for (const row of rollupOnly(rows)) {
+  for (const row of buyLineRollupRows(rows)) {
     const buyer = buyerByBuyLine.get(row.buy_line) ?? "UNASSIGNED";
     let group = groups.get(buyer);
     if (!group) {
@@ -119,12 +131,22 @@ export function aggregateGmroiByBuyer(
   }));
 }
 
+// The single "Grand Totals / All Branches" row from the ERP. Used by the
+// four overview scorecards on /gmroi.
 export function companyTotals(rows: GmroiRow[]): CompanyTotals {
-  const rollup = rollupOnly(rows);
+  const row = rows.find((r) => isGrandTotal(r) && r.branch_id === ALL_BRANCHES);
+  if (!row) {
+    return {
+      total_annual_cogs_dollars: 0,
+      total_on_hand_dollars: 0,
+      weighted_turns: null,
+      avg_adjusted_margin_pct: null,
+    };
+  }
   return {
-    total_annual_cogs_dollars: sum(rollup.map((r) => r.cogs_dollars_adjusted)),
-    total_on_hand_dollars: sum(rollup.map((r) => r.on_hand_dollars)),
-    weighted_turns: weightedTurns(rollup),
-    avg_adjusted_margin_pct: average(rollup.map((r) => r.adjusted_margin_pct)),
+    total_annual_cogs_dollars: row.cogs_dollars_adjusted ?? 0,
+    total_on_hand_dollars: row.on_hand_dollars ?? 0,
+    weighted_turns: row.turns,
+    avg_adjusted_margin_pct: row.adjusted_margin_pct,
   };
 }
