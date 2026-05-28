@@ -20,6 +20,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { aggregateGmroiByBuyer, type GmroiByBuyer } from "@/lib/gmroi-aggregations";
 import { formatDecimal, formatDollars, formatInteger } from "@/lib/format";
+import { useGmroiFilterState } from "@/hooks/useGmroiFilterState";
 import type { GmroiRow } from "@/lib/gmroi-types";
 
 const numericClass = "text-right tabular-nums";
@@ -78,6 +79,7 @@ type Props = {
 };
 
 export function GmroiByBuyerTable({ rows, buyerByBuyLine }: Props) {
+  const { filters, toggleBuyer } = useGmroiFilterState();
   const data = useMemo(
     () => (buyerByBuyLine ? aggregateGmroiByBuyer(rows, buyerByBuyLine) : []),
     [rows, buyerByBuyLine]
@@ -132,18 +134,25 @@ export function GmroiByBuyerTable({ rows, buyerByBuyLine }: Props) {
               ))}
             </TableHeader>
             <TableBody>
-              {table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={(cell.column.columnDef.meta as { numeric?: boolean } | undefined)?.numeric ? "text-right" : ""}
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
+              {table.getRowModel().rows.map((row) => {
+                const selected = filters.buyerSelection === row.original.buyer;
+                return (
+                  <TableRow
+                    key={row.id}
+                    onClick={() => toggleBuyer(row.original.buyer)}
+                    className={`cursor-pointer ${selected ? "bg-muted" : ""}`}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        className={(cell.column.columnDef.meta as { numeric?: boolean } | undefined)?.numeric ? "text-right" : ""}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}

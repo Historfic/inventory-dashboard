@@ -49,3 +49,10 @@ skills-lock.json
 # local invoices (personal — not part of the app)
 invoice-*.html
 invoice-*.pdf
+
+# never commit raw credentials
+KEYS.txt
+KEYS.md
+*.keys
+secrets.txt
+credentials.json

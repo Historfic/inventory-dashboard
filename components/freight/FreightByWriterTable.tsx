@@ -23,6 +23,7 @@ import {
   type FreightByWriter,
 } from "@/lib/inbound-freight-aggregations";
 import { formatDollars, formatInteger } from "@/lib/format";
+import { useFreightFilterState } from "@/hooks/useFreightFilterState";
 import type { InboundFreightRow } from "@/lib/inbound-freight-types";
 
 const numericClass = "text-right tabular-nums";
@@ -72,6 +73,7 @@ const columns: ColumnDef<FreightByWriter>[] = [
 ];
 
 export function FreightByWriterTable({ rows }: { rows: InboundFreightRow[] }) {
+  const { filters, toggleWriter } = useFreightFilterState();
   const data = useMemo(() => aggregateFreightByWriter(rows), [rows]);
 
   const [sorting, setSorting] = useState<SortingState>([
@@ -118,15 +120,22 @@ export function FreightByWriterTable({ rows }: { rows: InboundFreightRow[] }) {
               ))}
             </TableHeader>
             <TableBody>
-              {table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className={(cell.column.columnDef.meta as { numeric?: boolean } | undefined)?.numeric ? "text-right" : ""}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
+              {table.getRowModel().rows.map((row) => {
+                const selected = filters.writerSelection === row.original.writer;
+                return (
+                  <TableRow
+                    key={row.id}
+                    onClick={() => toggleWriter(row.original.writer)}
+                    className={`cursor-pointer ${selected ? "bg-muted" : ""}`}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} className={(cell.column.columnDef.meta as { numeric?: boolean } | undefined)?.numeric ? "text-right" : ""}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}

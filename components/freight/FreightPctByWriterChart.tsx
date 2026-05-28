@@ -5,6 +5,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -12,9 +13,15 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { aggregateFreightByWriter } from "@/lib/inbound-freight-aggregations";
+import { useFreightFilterState } from "@/hooks/useFreightFilterState";
 import type { InboundFreightRow } from "@/lib/inbound-freight-types";
 
+const BAR_COLOR = "#1d4ed8";
+const BAR_DIMMED = "#94a3b8";
+
 export function FreightPctByWriterChart({ rows }: { rows: InboundFreightRow[] }) {
+  const { filters, toggleWriter } = useFreightFilterState();
+  const selected = filters.writerSelection;
   const data = useMemo(() => {
     return aggregateFreightByWriter(rows)
       .map((b) => ({
@@ -61,7 +68,15 @@ export function FreightPctByWriterChart({ rows }: { rows: InboundFreightRow[] })
                   }}
                   cursor={{ fill: "rgba(0,0,0,0.04)" }}
                 />
-                <Bar dataKey="freight_pct" fill="#1d4ed8" />
+                <Bar dataKey="freight_pct" fill={BAR_COLOR} cursor="pointer">
+                  {data.map((entry) => (
+                    <Cell
+                      key={entry.writer}
+                      fill={selected === null || selected === entry.writer ? BAR_COLOR : BAR_DIMMED}
+                      onClick={() => toggleWriter(entry.writer)}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>

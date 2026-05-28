@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDollars } from "@/lib/format";
+import { useFreightFilterState } from "@/hooks/useFreightFilterState";
 import type { InboundFreightRow } from "@/lib/inbound-freight-types";
 
 const numericClass = "text-right tabular-nums";
@@ -52,10 +53,15 @@ const columns: ColumnDef<InboundFreightRow>[] = [
 ];
 
 export function HighInboundTable({ rows }: { rows: InboundFreightRow[] }) {
-  const data = useMemo(
-    () => rows.filter((r) => (r.inbound_pct ?? 0) >= THRESHOLD),
-    [rows]
-  );
+  const { filters } = useFreightFilterState();
+  const vendorFocused = filters.vendorSelection !== null;
+
+  const data = useMemo(() => {
+    if (vendorFocused) {
+      return rows.filter((r) => (r.freight_dollars ?? 0) > 0);
+    }
+    return rows.filter((r) => (r.inbound_pct ?? 0) >= THRESHOLD);
+  }, [rows, vendorFocused]);
 
   const [sorting, setSorting] = useState<SortingState>([
     { id: "inbound_pct", desc: true },
@@ -73,15 +79,23 @@ export function HighInboundTable({ rows }: { rows: InboundFreightRow[] }) {
   return (
     <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
       <CardHeader>
-        <CardTitle>High Inbound % Orders (≥ {THRESHOLD}%)</CardTitle>
+        <CardTitle>
+          {vendorFocused
+            ? `POs with freight — ${filters.vendorSelection}`
+            : `High Inbound % Orders (≥ ${THRESHOLD}%)`}
+        </CardTitle>
         <p className="text-xs text-muted-foreground">
-          Line items where freight is at least {THRESHOLD}% of the order — worth reviewing for cost.
+          {vendorFocused
+            ? "All line items from the selected vendor that incurred freight cost."
+            : `Line items where freight is at least ${THRESHOLD}% of the order — worth reviewing for cost.`}
         </p>
       </CardHeader>
       <CardContent>
         {data.length === 0 ? (
           <div className="py-8 text-center text-sm text-gray-500">
-            No orders cross the {THRESHOLD}% threshold.
+            {vendorFocused
+              ? "No freight-bearing POs for this vendor in the current view."
+              : `No orders cross the ${THRESHOLD}% threshold.`}
           </div>
         ) : (
           <Table containerClassName="max-h-[480px]">

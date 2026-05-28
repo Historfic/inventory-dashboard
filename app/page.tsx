@@ -14,6 +14,7 @@ import { DaysOutByBuyerChart } from "@/components/kpi/DaysOutByBuyerChart";
 import { BuyerSummaryTable } from "@/components/kpi/BuyerSummaryTable";
 import { BuyerBuyLineTable } from "@/components/kpi/BuyerBuyLineTable";
 import { PurchaseDaysOutTable } from "@/components/kpi/PurchaseDaysOutTable";
+import { InventoryTrendChart } from "@/components/kpi/InventoryTrendChart";
 import { BottlenecksPanel } from "@/components/alerts/BottlenecksPanel";
 import { ExecutiveBriefCard } from "@/components/ai/ExecutiveBriefCard";
 
@@ -104,6 +105,10 @@ function DashboardContents() {
           <section className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             <RevenueAtRiskCard rows={filteredRows} />
             <CriticalFiresCard rows={filteredRows} />
+          </section>
+
+          <section className="mb-4">
+            <InventoryTrendChart />
           </section>
 
           <section className="mb-4">

@@ -9,7 +9,8 @@ type State = {
   data: LineCountRow[] | null;
   loading: boolean;
   error: string | null;
-  reportDate: string | null;
+  availableDates: string[];
+  latestDate: string | null;
 };
 
 export function useLineCountsData() {
@@ -17,7 +18,8 @@ export function useLineCountsData() {
     data: null,
     loading: true,
     error: null,
-    reportDate: null,
+    availableDates: [],
+    latestDate: null,
   });
 
   useEffect(() => {
@@ -26,15 +28,32 @@ export function useLineCountsData() {
     (async () => {
       try {
         const rows = await fetchAllPages<LineCountRow>((from, to) =>
-          supabase.from("latest_line_counts_snapshot").select("*").range(from, to)
+          supabase.from("line_counts_all").select("*").range(from, to)
         );
         if (cancelled) return;
-        const reportDate = rows.length > 0 ? rows[0].report_date : null;
-        setState({ data: rows, loading: false, error: null, reportDate });
+        const dateSet = new Set<string>();
+        for (const r of rows) {
+          if (r.report_date) dateSet.add(String(r.report_date));
+        }
+        const availableDates = Array.from(dateSet).sort().reverse();
+        const latestDate = availableDates[0] ?? null;
+        setState({
+          data: rows,
+          loading: false,
+          error: null,
+          availableDates,
+          latestDate,
+        });
       } catch (err) {
         if (cancelled) return;
         const message = err instanceof Error ? err.message : "Unknown error";
-        setState({ data: null, loading: false, error: message, reportDate: null });
+        setState({
+          data: null,
+          loading: false,
+          error: message,
+          availableDates: [],
+          latestDate: null,
+        });
       }
     })();
 

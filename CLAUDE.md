@@ -63,8 +63,8 @@ If you think a different library would be better, **stop and ask** before swappi
 
 ## 2. The Data Pipeline (Context)
 
-1. **Source:** Daily CSV "Branch Stock Reports" dropped into a Google Drive folder by an ERP system.
-2. **Middleware:** An n8n workflow runs on a **24-hour schedule**, fetches the CSVs, runs a "Surgical Cleaner" script, and bulk-upserts rows into Supabase.
+1. **Source:** **Monthly** CSV "Branch Stock Reports" dropped into a Google Drive folder by an ERP system (one batch per branch per month). Earlier drafts of this doc described daily uploads — that was a misunderstanding; the ERP ships one snapshot per month, and the dashboard's stale-by-default state between drops is expected.
+2. **Middleware:** An n8n workflow runs on a **monthly schedule** (`Schedule Trigger` set to `interval: months`). Fetches the CSVs, runs a "Surgical Cleaner" script, and bulk-upserts rows into Supabase. `Skip If Already Loaded` guards in each branch short-circuit if the current month's data is already in the table, so manual mid-month runs are safe and idempotent.
 3. **Data quality guarantees provided by the pipeline** (you can trust these):
    - **Naked Comma Defense:** Description fields with unquoted commas are stitched back together. You will not see broken `desc_2` columns.
    - **Buyer Standardization:** Empty/null `buyer` values are rewritten as `"UNASSIGNED"`. You will never see null or empty string for `buyer`.
@@ -156,7 +156,7 @@ Read-only inspection of n8n and Supabase is allowed and encouraged for debugging
 
 ### Primary Table: `branch_stock_reports`
 
-Permanent historical record. **Do not query this directly for the daily dashboard** — use the view below.
+Permanent historical record. **Do not query this directly for the dashboard** — use the view below.
 
 **Composite unique key:** `(report_date, branch_id, ecl_id)`
 
@@ -180,7 +180,7 @@ Permanent historical record. **Do not query this directly for the daily dashboar
 
 ### Primary View for the Dashboard: `latest_inventory_snapshot`
 
-**Always query this view, not the underlying table**, for the daily dashboard. It filters to only the most recent `report_date`, preventing multi-day data from being accidentally summed or averaged together.
+**Always query this view, not the underlying table**, for the dashboard. It filters to only the most recent `report_date`, preventing multi-snapshot data from being accidentally summed or averaged together.
 
 **If the view does not yet exist**, create it with:
 
@@ -270,9 +270,9 @@ The dashboard must have a **toggle at the top** to show or hide the `"UNASSIGNED
 ### 4.5 Time-Series Awareness (Future-Proofing)
 
 For v1 the dashboard only uses `latest_inventory_snapshot`, so this is informational. **If anyone later asks for historical charting**, remember:
-- The base table contains multiple rows per `ecl_id` across days
+- The base table contains multiple rows per `ecl_id` across snapshots (monthly cadence — one snapshot per branch per month)
 - Aggregations must group by `report_date` first
-- Do not average across days unless explicitly asked
+- Do not average across snapshots unless explicitly asked
 
 ---
 
@@ -321,8 +321,11 @@ For v1 the dashboard only uses `latest_inventory_snapshot`, so this is informati
 ### Date Range Semantics
 
 The Date filter scopes which days are *available*. The dashboard always displays
-the latest snapshot **within** the selected range (no averaging across days, per
-§4.5). Implemented via the `latest_inventory_in_range` RPC (see §3).
+the latest snapshot **within** the selected range (no averaging across snapshots,
+per §4.5). Implemented via the `latest_inventory_in_range` RPC (see §3). **Note:**
+because uploads are monthly, the default "Last 7 days" preset will often return
+zero matches — the default should be widened (e.g. "Last 30 days" or "Current
+month") to align with actual data cadence.
 
 ### Data Formatting
 
@@ -530,7 +533,7 @@ These apply regardless of mode:
 - **Never hardcode the anon key or service role key** anywhere in source files.
 - **Never use the service role key in frontend code.** It bypasses RLS and has full database access. The frontend uses only the anon key. If you find yourself reaching for the service role key, you're solving the problem wrong.
 - **Never use `SUM()` on `days_out` or `stockout_pct`** when grouping (Section 4.1).
-- **Never query `branch_stock_reports` directly for the daily dashboard.** Use `latest_inventory_snapshot` (Section 3).
+- **Never query `branch_stock_reports` directly for the dashboard.** Use `latest_inventory_snapshot` (Section 3).
 - **Never round numbers before aggregating.** Round only at the display layer (Section 4.3).
 - **Never assume RLS state without checking** — if queries return empty arrays unexpectedly, check RLS before any other debugging (Section 3).
 - **Never substitute libraries silently.** If you think something different from Section 1's stack is better, ask first.
@@ -566,14 +569,13 @@ If none of the above explains it, **stop and ask the project owner** with: what 
 
 ## 11. Out of Scope for v1 (Do Not Build)
 
-- Historical charting / time-series views
 - CSV/PDF export
 - User authentication (Todd accesses via private Vercel URL)
 - Multi-tenant support
 - Mobile responsive design (desktop-only for executive use)
 - Email reports
 - Push notifications
-- Real-time updates (data is daily-batch)
+- Real-time updates (data is monthly-batch)
 - Dark mode
 
 These may come later. **Do not build them speculatively.**
@@ -638,9 +640,10 @@ the buy_line filter, clicking a buyer bottleneck sets the buyer filter.
 
 ## 14. GMROI Page
 
-Lives at `/gmroi`. Independent from the main dashboard because GMROI data is
-**monthly** (one file per month from the ERP) while inventory is **daily**, and
-the metrics are financial ratios rather than stock-day counts.
+Lives at `/gmroi`. Independent from the main dashboard because the GMROI source
+files arrive on a different upload cadence inside the same month and the
+metrics are financial ratios rather than stock-day counts. (All four data types
+in the pipeline — inventory, GMROI, freight, line counts — are monthly.)
 
 ### Data source
 
@@ -785,8 +788,9 @@ Dollars are flow quantities → SUM. Inbound % is a per-row ratio → AVG (for t
 
 Lives at `/line-counts`. Reads `latest_line_counts_snapshot` view. Data is
 **monthly** cadence — Oliver confirmed: four reports per month (PO, SO,
-Transfer, Direct PO). The fact that the May 2026 filenames happened to use the
-same date string as inventory was coincidental; do not treat as daily.
+Transfer, Direct PO). All four pipeline data types share the same monthly
+cadence; the May 2026 filenames using the same date string as inventory is
+expected, not coincidence.
 
 ### Schema
 
@@ -881,6 +885,48 @@ System prompts live as `SYSTEM_PROMPT` constants at the top of each route file.
 Edit there, save, hot-reload. The cache key does **not** include the prompt
 text, so after a prompt change either clear the in-memory cache (restart the
 server) or flip a hidden cache-buster constant if testing iteratively.
+
+---
+
+## 18. Trend Charts (Historical Snapshots)
+
+Each of the four pages displays a trend chart showing progression across
+uploads. Lives **just below the scorecards, above the data tables** on every
+page. The trend is always **company-wide and unfiltered** by current page
+filters — it's a separate dimension that gives historical context for whatever
+the user is currently looking at. Chart titles call this out explicitly so
+viewers don't confuse trend numbers with the filtered view.
+
+### Data sources
+
+| Page | Source | Cadence |
+|---|---|---|
+| Inventory `/` | `inventory_daily_summary` view (pre-aggregated per `report_date`) | Monthly |
+| GMROI `/gmroi` | `gmroi_all` view, filtered client-side to "Grand Totals / All Branches" row per snapshot | Monthly |
+| Freight `/freight` | `inbound_freight_all` view, weighted SUM(freight)/SUM(order) per `report_date` | Monthly |
+| Line Counts `/line-counts` | `line_counts_all` view (already in place from §16 multi-upload picker) | Monthly |
+
+The Inventory source is pre-aggregated at the DB layer because the base table
+is large (~3k items × N days). The other three are small enough to aggregate
+client-side from raw rows.
+
+### Metrics shown
+
+- **Inventory**: avg `stockout_pct` per day (line) + critical-fires count (secondary axis).
+- **GMROI**: company-wide GMROI per upload (line).
+- **Freight**: weighted Freight % of Order per upload — `SUM(freight) / SUM(order)`, NOT `AVG(inbound_pct)` (per §15 weighted/per-row distinction).
+- **Line Counts**: stacked area by `line_type` per upload — PO / SO / DIR / TR.
+
+### Empty / sparse states
+
+When fewer than 2 data points exist for a chart, render the empty state
+("Trend will appear after the next upload lands.") rather than a degenerate
+single-point chart. This avoids confusing the executive viewer.
+
+### What trends do NOT do
+
+- They do **not** respect the page-level filter selection (buyer/buy_line/branch/date-range/UNASSIGNED toggle/freight writer/freight vendor/line-counts upload picker). They are always whole-company, all-history. This is a deliberate scope decision — filtered trends require server-side aggregation on every filter change, which is a bigger project. Revisit if the client asks.
+- They do **not** offer interactivity beyond Recharts' default tooltip. No click-to-filter. The current snapshot tables remain the interactive surface.
 
 ---
 

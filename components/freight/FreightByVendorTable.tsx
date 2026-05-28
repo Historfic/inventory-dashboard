@@ -23,6 +23,7 @@ import {
   type FreightByVendor,
 } from "@/lib/inbound-freight-aggregations";
 import { formatDollars, formatInteger } from "@/lib/format";
+import { useFreightFilterState } from "@/hooks/useFreightFilterState";
 import type { InboundFreightRow } from "@/lib/inbound-freight-types";
 
 const numericClass = "text-right tabular-nums";
@@ -59,6 +60,7 @@ const columns: ColumnDef<FreightByVendor>[] = [
 ];
 
 export function FreightByVendorTable({ rows }: { rows: InboundFreightRow[] }) {
+  const { filters, toggleVendor } = useFreightFilterState();
   const data = useMemo(() => aggregateFreightByVendor(rows), [rows]);
 
   const [sorting, setSorting] = useState<SortingState>([
@@ -108,15 +110,22 @@ export function FreightByVendorTable({ rows }: { rows: InboundFreightRow[] }) {
                 ))}
               </TableHeader>
               <TableBody>
-                {table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className={(cell.column.columnDef.meta as { numeric?: boolean } | undefined)?.numeric ? "text-right" : ""}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
+                {table.getRowModel().rows.map((row) => {
+                  const selected = filters.vendorSelection === row.original.vendor_name;
+                  return (
+                    <TableRow
+                      key={row.id}
+                      onClick={() => toggleVendor(row.original.vendor_name)}
+                      className={`cursor-pointer ${selected ? "bg-muted" : ""}`}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id} className={(cell.column.columnDef.meta as { numeric?: boolean } | undefined)?.numeric ? "text-right" : ""}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })}
             </TableBody>
           </Table>
         )}

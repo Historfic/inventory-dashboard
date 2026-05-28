@@ -20,6 +20,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { aggregateGmroiByBuyLine, type GmroiByBuyLine } from "@/lib/gmroi-aggregations";
 import { formatDecimal, formatDollars } from "@/lib/format";
+import { useGmroiFilterState } from "@/hooks/useGmroiFilterState";
 import type { GmroiRow } from "@/lib/gmroi-types";
 
 const numericClass = "text-right tabular-nums";
@@ -87,10 +88,14 @@ type Props = {
 };
 
 export function GmroiByBuyLineTable({ rows, buyerByBuyLine }: Props) {
-  const data = useMemo(
-    () => (buyerByBuyLine ? aggregateGmroiByBuyLine(rows, buyerByBuyLine) : []),
-    [rows, buyerByBuyLine]
-  );
+  const { filters } = useGmroiFilterState();
+  const data = useMemo(() => {
+    if (!buyerByBuyLine) return [];
+    const all = aggregateGmroiByBuyLine(rows, buyerByBuyLine);
+    return filters.buyerSelection
+      ? all.filter((r) => r.buyer === filters.buyerSelection)
+      : all;
+  }, [rows, buyerByBuyLine, filters.buyerSelection]);
 
   const [sorting, setSorting] = useState<SortingState>([
     { id: "annual_cogs_dollars", desc: true },
@@ -108,7 +113,14 @@ export function GmroiByBuyLineTable({ rows, buyerByBuyLine }: Props) {
   return (
     <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
       <CardHeader>
-        <CardTitle>GMROI by Buy Line</CardTitle>
+        <CardTitle>
+          GMROI by Buy Line
+          {filters.buyerSelection && (
+            <span className="ml-2 text-sm font-normal text-muted-foreground">
+              — filtered to {filters.buyerSelection}
+            </span>
+          )}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         {!buyerByBuyLine ? (
