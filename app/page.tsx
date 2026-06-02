@@ -8,15 +8,11 @@ import { BranchFilter } from "@/components/filters/BranchFilter";
 import { DateRangeFilter } from "@/components/filters/DateRangeFilter";
 import { UnassignedToggle } from "@/components/filters/UnassignedToggle";
 import { ActiveFiltersBar } from "@/components/filters/ActiveFiltersBar";
-import { RevenueAtRiskCard } from "@/components/kpi/RevenueAtRiskCard";
-import { CriticalFiresCard } from "@/components/kpi/CriticalFiresCard";
 import { DaysOutByBuyerChart } from "@/components/kpi/DaysOutByBuyerChart";
 import { BuyerSummaryTable } from "@/components/kpi/BuyerSummaryTable";
 import { BuyerBuyLineTable } from "@/components/kpi/BuyerBuyLineTable";
 import { PurchaseDaysOutTable } from "@/components/kpi/PurchaseDaysOutTable";
 import { InventoryTrendChart } from "@/components/kpi/InventoryTrendChart";
-import { BottlenecksPanel } from "@/components/alerts/BottlenecksPanel";
-import { ExecutiveBriefCard } from "@/components/ai/ExecutiveBriefCard";
 
 export default function DashboardPage() {
   return (
@@ -94,19 +90,6 @@ function DashboardContents() {
         </div>
       ) : (
         <>
-          <section className="mb-4">
-            <ExecutiveBriefCard rows={filteredRows} reportDate={reportDate} />
-          </section>
-
-          <section className="mb-4">
-            <BottlenecksPanel rows={filteredRows} />
-          </section>
-
-          <section className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <RevenueAtRiskCard rows={filteredRows} />
-            <CriticalFiresCard rows={filteredRows} />
-          </section>
-
           <section className="mb-4">
             <InventoryTrendChart />
           </section>

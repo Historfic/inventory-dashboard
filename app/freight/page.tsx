@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useInboundFreightData } from "@/hooks/useInboundFreightData";
 import {
   FreightFilterProvider,
@@ -12,6 +12,7 @@ import { FreightByVendorTable } from "@/components/freight/FreightByVendorTable"
 import { FreightByWriterTable } from "@/components/freight/FreightByWriterTable";
 import { HighInboundTable } from "@/components/freight/HighInboundTable";
 import { FreightTrendChart } from "@/components/freight/FreightTrendChart";
+import { UploadPicker } from "@/components/line-counts/UploadPicker";
 import type { InboundFreightRow } from "@/lib/inbound-freight-types";
 
 export default function FreightPage() {
@@ -23,21 +24,46 @@ export default function FreightPage() {
 }
 
 function FreightContents() {
-  const { data, loading, error, reportDate } = useInboundFreightData();
+  const { data, loading, error, availableDates, latestDate } = useInboundFreightData();
   const { filters, toggleWriter, toggleVendor, clearAll } = useFreightFilterState();
 
-  // The bar chart always sees the full set so the user can compare/un-select.
-  // The two lower tables narrow by writer; High Inbound additionally narrows by vendor.
-  const writerFilteredRows = useMemo<InboundFreightRow[]>(() => {
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
+
+  // Default to latest upload once data lands; do not stomp a user choice after that.
+  useEffect(() => {
+    if (selectedDates.length === 0 && latestDate) {
+      setSelectedDates([latestDate]);
+    }
+  }, [latestDate, selectedDates.length]);
+
+  // Layered filtering: dates first, then writer, then vendor.
+  const dateFilteredRows = useMemo<InboundFreightRow[]>(() => {
     if (!data) return [];
-    if (!filters.writerSelection) return data;
-    return data.filter((r) => r.writer === filters.writerSelection);
-  }, [data, filters.writerSelection]);
+    if (selectedDates.length === 0) return [];
+    const set = new Set(selectedDates);
+    return data.filter((r) => set.has(String(r.report_date)));
+  }, [data, selectedDates]);
+
+  const writerFilteredRows = useMemo<InboundFreightRow[]>(() => {
+    if (!filters.writerSelection) return dateFilteredRows;
+    return dateFilteredRows.filter((r) => r.writer === filters.writerSelection);
+  }, [dateFilteredRows, filters.writerSelection]);
 
   const vendorFilteredRows = useMemo<InboundFreightRow[]>(() => {
     if (!filters.vendorSelection) return writerFilteredRows;
     return writerFilteredRows.filter((r) => r.vendor_name === filters.vendorSelection);
   }, [writerFilteredRows, filters.vendorSelection]);
+
+  const headerLabel = useMemo(() => {
+    if (loading) return "Loading…";
+    if (!availableDates.length) return "No uploads available";
+    if (selectedDates.length === 1) return `Upload: ${selectedDates[0]}`;
+    if (selectedDates.length > 1) {
+      const sorted = [...selectedDates].sort();
+      return `${selectedDates.length} uploads · ${sorted[0]} → ${sorted[sorted.length - 1]}`;
+    }
+    return "Pick an upload above";
+  }, [loading, availableDates.length, selectedDates]);
 
   const hasFilter = filters.writerSelection !== null || filters.vendorSelection !== null;
 
@@ -46,8 +72,8 @@ function FreightContents() {
       <header className="mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">Inbound Freight</h1>
         <p className="text-sm text-gray-500">
-          {reportDate ? `Snapshot: ${reportDate}` : "Loading…"}
-          {data && ` · ${data.length.toLocaleString()} line items`}
+          {headerLabel}
+          {data && ` · ${dateFilteredRows.length.toLocaleString()} line items`}
           {hasFilter && data && ` · ${vendorFilteredRows.length.toLocaleString()} shown`}
         </p>
       </header>
@@ -101,10 +127,15 @@ function FreightContents() {
         </div>
       ) : (
         <div className="flex flex-col gap-4">
+          <UploadPicker
+            availableDates={availableDates}
+            selectedDates={selectedDates}
+            onChange={setSelectedDates}
+          />
           <FreightOverviewCards rows={vendorFilteredRows} />
           <FreightTrendChart />
-          <FreightPctByWriterChart rows={data} />
-          <FreightByWriterTable rows={data} />
+          <FreightPctByWriterChart rows={dateFilteredRows} />
+          <FreightByWriterTable rows={dateFilteredRows} />
           <FreightByVendorTable rows={writerFilteredRows} />
           <HighInboundTable rows={vendorFilteredRows} />
         </div>

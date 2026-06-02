@@ -925,8 +925,19 @@ single-point chart. This avoids confusing the executive viewer.
 
 ### What trends do NOT do
 
-- They do **not** respect the page-level filter selection (buyer/buy_line/branch/date-range/UNASSIGNED toggle/freight writer/freight vendor/line-counts upload picker). They are always whole-company, all-history. This is a deliberate scope decision — filtered trends require server-side aggregation on every filter change, which is a bigger project. Revisit if the client asks.
-- They do **not** offer interactivity beyond Recharts' default tooltip. No click-to-filter. The current snapshot tables remain the interactive surface.
+- They do **not** respect the date-range/branch/UNASSIGNED toggle/freight vendor/line-counts upload picker. They are always whole-history.
+- They do **not** offer interactivity beyond Recharts' default tooltip and (where wired) buyer click-to-filter.
+
+### Inventory trend buyer-filter (Oliver's ask, 2026-05-29)
+
+The **inventory** trend respects `useFilterState().filters.buyerSelection`:
+- **No buyer selected**: company-wide line from `inventory_daily_summary` view.
+- **Buyer selected** (via Buyer Summary table or Days Out by Buyer chart click): trend filters to that buyer only, reading from the `inventory_buyer_summary` view. Title swaps to *"Trend — BUYERNAME"*.
+
+GMROI / Freight / Line Counts trends do not (yet) wire to their buyer/writer click. Same pattern can be replicated when needed:
+- GMROI: would need `gmroi_buyer_summary` view aggregating `gmroi_all` by `(report_date, buyer)` via the buyer↔buy_line map.
+- Freight: would need `inbound_freight_writer_summary` aggregating `inbound_freight_all` by `(report_date, writer)`.
+- Line Counts: could be done client-side from `line_counts_all` (already loaded full-history); the per-writer slice exists in the data.
 
 ---
 
