@@ -13,11 +13,11 @@ export const UNASSIGNED = "UNASSIGNED";
 
 export function defaultFilterState(): FilterState {
   const today = new Date();
-  const sevenDaysAgo = new Date(today);
-  sevenDaysAgo.setDate(today.getDate() - 7);
+  const oneYearAgo = new Date(today);
+  oneYearAgo.setFullYear(today.getFullYear() - 1); // wide enough to always catch the latest monthly snapshot
   return {
     branches: [],
-    dateStart: toISODate(sevenDaysAgo),
+    dateStart: toISODate(oneYearAgo),
     dateEnd: toISODate(today),
     buyerSelection: null,
     buyLineSelection: null,
