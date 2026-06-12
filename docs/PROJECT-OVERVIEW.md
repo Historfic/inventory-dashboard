@@ -132,7 +132,7 @@ troubleshooting section walks through both paths.
 | **Dashboard (production)** | `https://<your-vercel-url>` | The bookmarkable site. Replace `<your-vercel-url>` with the actual Vercel deployment URL. |
 | **Source code** | `https://github.com/Historfic/inventory-dashboard` | Every line of the dashboard. Edit, commit, push → Vercel auto-deploys. |
 | **Pipeline (n8n)** | `https://gogreen.app.n8n.cloud/workflow/tLvIuvkmtztVT9JZ` | The "Branch Report Pipeline" workflow. Imports → cleans → writes to Supabase. |
-| **Database (Supabase)** | `https://supabase.com/dashboard/project/mvsjswojnwhokqpkgxfq` | Live data, SQL editor, table editor, logs. |
+| **Database (Supabase)** | `https://supabase.com/dashboard/project/iijqoarquipovpfhkbvz` | Live data, SQL editor, table editor, logs. |
 | **Drive folders** | `https://drive.google.com/drive/folders/<folder-id>` | Four sibling folders (Inventory, GMROI, Freight, Line Counts). The ERP drops CSVs here. |
 | **Hosting (Vercel)** | `https://vercel.com/<account>/inventory-dashboard` | Build logs, deployment history, environment variables. |
 | **AI provider (Anthropic)** | `https://console.anthropic.com` | Billing, API key management, usage. |
@@ -198,7 +198,7 @@ Each branch:
 
 ## 5. The database (Supabase)
 
-> Project ref: `mvsjswojnwhokqpkgxfq`
+> Project ref: `iijqoarquipovpfhkbvz`
 
 ### Tables (permanent, append-only)
 

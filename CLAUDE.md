@@ -151,7 +151,7 @@ Read-only inspection of n8n and Supabase is allowed and encouraged for debugging
 
 ### Connection
 
-- **Project URL:** `https://mvsjswojnwhokqpkgxfq.supabase.co`
+- **Project URL:** `https://iijqoarquipovpfhkbvz.supabase.co`
 - **Anon key:** Provided separately (via `.env.local`). **Never commit this file or hardcode the key.**
 
 ### Primary Table: `branch_stock_reports`
@@ -418,7 +418,7 @@ inventory-dashboard/
 `.env.local` (not committed):
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://mvsjswojnwhokqpkgxfq.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://iijqoarquipovpfhkbvz.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<get from project owner — never commit>
 ```
 
@@ -448,7 +448,7 @@ npx shadcn@latest add table button toggle card
 After connecting and creating the view:
 
 ```powershell
-npx supabase gen types typescript --project-id mvsjswojnwhokqpkgxfq > lib/types.ts
+npx supabase gen types typescript --project-id iijqoarquipovpfhkbvz > lib/types.ts
 ```
 
 This pulls real column types from the database. Re-run any time the schema changes.
