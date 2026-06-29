@@ -23,7 +23,7 @@ import {
   type LineCountByWriter,
 } from "@/lib/line-counts-aggregations";
 import { formatInteger } from "@/lib/format";
-import type { LineCountRow } from "@/lib/line-counts-types";
+import { ANOMALY_THRESHOLD, type LineCountRow } from "@/lib/line-counts-types";
 
 const numericClass = "text-right tabular-nums";
 
@@ -31,12 +31,28 @@ const intCell = (value: unknown) => (
   <span className={numericClass}>{formatInteger(value as number)}</span>
 );
 
+// Flags any single value above ANOMALY_THRESHOLD with a warning marker + tooltip,
+// so an unverified outlier (e.g. JEFFC May TR = 538,537) never ships silently.
+const flagCell = (value: unknown) => {
+  const n = value as number;
+  const flagged = typeof n === "number" && n > ANOMALY_THRESHOLD;
+  return (
+    <span
+      className={`${numericClass} ${flagged ? "font-semibold text-amber-700" : ""}`}
+      title={flagged ? "Unusually high value — please verify with Todd before reporting" : undefined}
+    >
+      {flagged ? "⚠ " : ""}
+      {formatInteger(n)}
+    </span>
+  );
+};
+
 const columns: ColumnDef<LineCountByWriter>[] = [
   { accessorKey: "writer", header: "Writer" },
-  { accessorKey: "PO", header: "PO", cell: ({ getValue }) => intCell(getValue()), meta: { numeric: true } },
-  { accessorKey: "SO", header: "SO", cell: ({ getValue }) => intCell(getValue()), meta: { numeric: true } },
-  { accessorKey: "DIR", header: "DIR", cell: ({ getValue }) => intCell(getValue()), meta: { numeric: true } },
-  { accessorKey: "TR", header: "TR", cell: ({ getValue }) => intCell(getValue()), meta: { numeric: true } },
+  { accessorKey: "PO", header: "PO", cell: ({ getValue }) => flagCell(getValue()), meta: { numeric: true } },
+  { accessorKey: "SO", header: "SO", cell: ({ getValue }) => flagCell(getValue()), meta: { numeric: true } },
+  { accessorKey: "DIR", header: "DIR", cell: ({ getValue }) => flagCell(getValue()), meta: { numeric: true } },
+  { accessorKey: "TR", header: "TR", cell: ({ getValue }) => flagCell(getValue()), meta: { numeric: true } },
   { accessorKey: "total", header: "Total", cell: ({ getValue }) => intCell(getValue()), meta: { numeric: true } },
 ];
 

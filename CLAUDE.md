@@ -792,22 +792,39 @@ Transfer, Direct PO). All four pipeline data types share the same monthly
 cadence; the May 2026 filenames using the same date string as inventory is
 expected, not coincidence.
 
-### Schema
+### Schema & Naming Convention
 
-`branch_line_count_reports` columns: `report_date`, `writer`, `line_type`,
-`line_count`. Composite unique: `(report_date, writer, line_type)`.
+`branch_line_count_reports` columns: `report_date`, `month`, `writer`,
+`system_source` (`AR` or `OQ`), `line_type` (`PO`/`SO`/`DIR`/`TR`),
+`line_count`. **Composite unique: `(report_date, month, system_source, line_type, writer)`.**
 
-`line_type` is one of `'PO'`, `'SO'`, `'DIR'`, `'TR'` — derived by the cleaner
-from the source CSV's 2nd-column header (`PO Lines`, `SO Lines`, `Dir. Lines`,
-`TR Lines`). Source ships **4 separate CSV files per day**, one per type; they
-all land in the same Drive folder. Cleaner detects the type from the header,
-extracts writer + count, skips empty separator rows and the footer total.
+`month` is REQUIRED in the key: source files carry the **export date** in the
+filename (e.g. `20260625`), which is identical across months in one batch — so
+without `month`, April and May rows for the same writer/type/system collide on
+upsert (`ON CONFLICT … cannot affect row a second time`).
+
+Filename convention: `[MONTH]-[SYSTEM]-[TXTYPE]-[YYYYMMDD]_DOC_[ID].CSV`
+(e.g. `APRIL-AR-PO-20260625_DOC_20648115.CSV`). `Metadata Parser1` splits on
+`-` to extract month/system/tx_type and the date. `system` and `tx_type` flow
+through to the `Line Counts Cleaner`.
+
+`line_type` is derived by the cleaner from the CSV's 2nd-column header. **Header
+labels in the wild:** `PO Lines`, `SO Lines`, `TR Lines`, and **`DR Lines`**
+(the Direct/DIR files use the abbreviation `DR`, NOT `Dir.` — the cleaner maps
+both `DR` and `DIR` → `DIR`).
 
 ### Source CSV quirks
 
 - Empty separator rows between every writer line — skip rows where writer is blank.
 - Footer total row uses `=========` separator and has whitespace-only writer —
   skip rows where the count column contains `=`.
+- **Missing files:** when OQ has no data for a month/type (e.g. April/May OQ DIR),
+  no file exists. The pipeline processes available files without error.
+- **Mislabeled files:** the cleaner compares the filename's declared type against
+  the detected header type; on mismatch it **skips the file** and logs a warning
+  (e.g. a file named `MAY-OQ-PO` whose header reads `DIR Lines` is dropped, not
+  ingested as wrong data). This is why a verified total can legitimately differ
+  by the skipped file's rows — confirm with Todd rather than "fixing" it.
 
 ### Layout
 
@@ -825,9 +842,17 @@ extracts writer + count, skips empty separator rows and the footer total.
 
 ### Aggregation rules
 
+- **AR/OQ merge:** AR and OQ counts for the same month/type are COMBINED into one
+  consolidated number on the UI — never shown as separate metrics. The merge is
+  automatic: `lineCountTotals` and `aggregateLineCountsByWriter` SUM across rows
+  by `line_type`, so AR+OQ for a writer/type collapse into one figure.
+- The page filters to a single `month` (Month selector, defaults to latest) so
+  April and May are never summed together.
 - `lineCountTotals`: SUM line_count per type, COUNT distinct writers per type.
 - `aggregateLineCountsByWriter`: pivots rows into one row per writer with PO,
-  SO, DIR, TR, and total columns. Sorted by total desc.
+  SO, DIR, TR (each = combined AR+OQ), and total columns. Sorted by total desc.
+- **Anomaly flag:** any single value > `ANOMALY_THRESHOLD` (100,000) renders with
+  a ⚠ marker + "verify with Todd" tooltip (covers e.g. JEFFC May TR = 538,537).
 
 ---
 

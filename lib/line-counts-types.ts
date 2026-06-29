@@ -1,10 +1,16 @@
 export type LineCountRow = {
   id: number;
   report_date: string;
+  month: string | null;
+  system_source: "AR" | "OQ" | null;
   writer: string;
   line_type: "PO" | "SO" | "DIR" | "TR";
   line_count: number;
 };
+
+// Anomaly threshold: any single writer/type value above this is flagged for
+// manual verification before reporting (e.g. JEFFC May TR = 538,537).
+export const ANOMALY_THRESHOLD = 100000;
 
 export const LINE_TYPES = ["PO", "SO", "DIR", "TR"] as const;
 

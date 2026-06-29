@@ -56,3 +56,6 @@ KEYS.md
 *.keys
 secrets.txt
 credentials.json
+
+# n8n workflow backups / temp staging (may contain keys) — never commit
+scripts/_*

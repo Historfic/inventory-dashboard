@@ -8,9 +8,17 @@ import { LineCountsPivotTable } from "@/components/line-counts/LineCountsPivotTa
 import { LineCountsTrendChart } from "@/components/line-counts/LineCountsTrendChart";
 import { UploadPicker } from "@/components/line-counts/UploadPicker";
 
+const MONTH_ORDER = [
+  "january", "february", "march", "april", "may", "june",
+  "july", "august", "september", "october", "november", "december",
+];
+const monthRank = (m: string | null) =>
+  m ? MONTH_ORDER.indexOf(m.toLowerCase()) : -1;
+
 export default function LineCountsPage() {
   const { data, loading, error, availableDates, latestDate } = useLineCountsData();
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
   // Default to latest upload once data lands; do not stomp a user choice after that.
   useEffect(() => {
@@ -19,12 +27,30 @@ export default function LineCountsPage() {
     }
   }, [latestDate, selectedDates.length]);
 
+  // Distinct months present, in calendar order (a single export batch can carry
+  // several months since AR/OQ files share one export date).
+  const availableMonths = useMemo(() => {
+    if (!data) return [];
+    const set = new Set<string>();
+    for (const r of data) if (r.month) set.add(r.month);
+    return Array.from(set).sort((a, b) => monthRank(a) - monthRank(b));
+  }, [data]);
+
+  // Default to the latest month once data lands.
+  useEffect(() => {
+    if (selectedMonth === null && availableMonths.length) {
+      setSelectedMonth(availableMonths[availableMonths.length - 1]);
+    }
+  }, [availableMonths, selectedMonth]);
+
   const filteredRows = useMemo(() => {
     if (!data) return [];
     if (selectedDates.length === 0) return [];
     const set = new Set(selectedDates);
-    return data.filter((r) => set.has(String(r.report_date)));
-  }, [data, selectedDates]);
+    return data.filter(
+      (r) => set.has(String(r.report_date)) && (!selectedMonth || r.month === selectedMonth)
+    );
+  }, [data, selectedDates, selectedMonth]);
 
   const headerLabel = useMemo(() => {
     if (loading) return "Loading…";
@@ -66,6 +92,25 @@ export default function LineCountsPage() {
             selectedDates={selectedDates}
             onChange={setSelectedDates}
           />
+          {availableMonths.length > 1 && (
+            <div className="flex items-center gap-2 rounded-lg border border-sky-200 bg-white p-3 shadow-md">
+              <span className="text-sm font-medium text-gray-700">Month:</span>
+              {availableMonths.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setSelectedMonth(m)}
+                  className={`rounded-md px-3 py-1 text-sm ${
+                    selectedMonth === m
+                      ? "bg-sky-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          )}
           <LineCountScorecards rows={filteredRows} />
           <LineCountsTrendChart rows={data} />
           <LineCountsByWriterChart rows={filteredRows} />
