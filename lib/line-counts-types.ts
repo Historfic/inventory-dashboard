@@ -1,6 +1,7 @@
 export type LineCountRow = {
   id: number;
   report_date: string;
+  created_at?: string | null;
   month: string | null;
   system_source: "AR" | "OQ" | null;
   writer: string;

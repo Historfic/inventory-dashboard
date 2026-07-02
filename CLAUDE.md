@@ -854,6 +854,22 @@ both `DR` and `DIR` → `DIR`).
 - **Anomaly flag:** any single value > `ANOMALY_THRESHOLD` (100,000) renders with
   a ⚠ marker + "verify with Todd" tooltip (covers e.g. JEFFC May TR = 538,537).
 
+### Corrections & dates (important)
+
+`report_date` is the **export date parsed from the filename** (`…-YYYYMMDD_DOC_…`),
+NOT the ingestion time. When a report is corrected it's re-exported with a *new*
+date, so it lands as new rows instead of overwriting the ones it fixes. The page
+handles this with `latestByMonthTypeSystem()` (in `lib/line-counts-aggregations.ts`):
+for each `(month, system_source, line_type)` it keeps only the rows from the most
+recent `report_date`, so a corrected export **supersedes** the stale one while
+untouched categories keep their values. There is **no** upload/date picker on this
+page — it always shows the latest-corrected view, filtered by the **Month** selector.
+The header shows **"Data refreshed <created_at>"** (real ingestion time) so viewers
+don't confuse it with the export date.
+
+Data only changes when the **n8n pipeline runs** (monthly schedule or a manual
+"Test workflow"); dropping files in Drive does not auto-load them.
+
 ---
 
 ## 17. AI Features (Claude Haiku 4.5)

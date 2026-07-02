@@ -2,74 +2,63 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useLineCountsData } from "@/hooks/useLineCountsData";
+import { latestByMonthTypeSystem } from "@/lib/line-counts-aggregations";
 import { LineCountScorecards } from "@/components/line-counts/LineCountScorecards";
 import { LineCountsByWriterChart } from "@/components/line-counts/LineCountsByWriterChart";
 import { LineCountsPivotTable } from "@/components/line-counts/LineCountsPivotTable";
 import { LineCountsTrendChart } from "@/components/line-counts/LineCountsTrendChart";
-import { UploadPicker } from "@/components/line-counts/UploadPicker";
 
 const MONTH_ORDER = [
   "january", "february", "march", "april", "may", "june",
   "july", "august", "september", "october", "november", "december",
 ];
+// All 12 calendar months in display (title) case — shown in the selector even
+// when a month has no data, so the year reads as a complete set.
+const ALL_MONTHS = MONTH_ORDER.map((m) => m[0].toUpperCase() + m.slice(1));
 const monthRank = (m: string | null) =>
   m ? MONTH_ORDER.indexOf(m.toLowerCase()) : -1;
 
 export default function LineCountsPage() {
-  const { data, loading, error, availableDates, latestDate } = useLineCountsData();
-  const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const { data, loading, error, refreshedAt } = useLineCountsData();
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
-  // Default to latest upload once data lands; do not stomp a user choice after that.
-  useEffect(() => {
-    if (selectedDates.length === 0 && latestDate) {
-      setSelectedDates([latestDate]);
-    }
-  }, [latestDate, selectedDates.length]);
+  // Collapse to the latest export per (month, system, line_type) so a corrected
+  // re-export supersedes the stale one it fixes (no more coexisting bad data).
+  const latestRows = useMemo(
+    () => (data ? latestByMonthTypeSystem(data) : []),
+    [data]
+  );
 
-  // Distinct months present, in calendar order (a single export batch can carry
-  // several months since AR/OQ files share one export date).
+  // Months that actually have data, in calendar order.
   const availableMonths = useMemo(() => {
-    if (!data) return [];
     const set = new Set<string>();
-    for (const r of data) if (r.month) set.add(r.month);
+    for (const r of latestRows) if (r.month) set.add(r.month);
     return Array.from(set).sort((a, b) => monthRank(a) - monthRank(b));
-  }, [data]);
+  }, [latestRows]);
 
-  // Default to the latest month once data lands.
+  // Default to the latest month that has data.
   useEffect(() => {
     if (selectedMonth === null && availableMonths.length) {
       setSelectedMonth(availableMonths[availableMonths.length - 1]);
     }
   }, [availableMonths, selectedMonth]);
 
-  const filteredRows = useMemo(() => {
-    if (!data) return [];
-    if (selectedDates.length === 0) return [];
-    const set = new Set(selectedDates);
-    return data.filter(
-      (r) => set.has(String(r.report_date)) && (!selectedMonth || r.month === selectedMonth)
-    );
-  }, [data, selectedDates, selectedMonth]);
+  const filteredRows = useMemo(
+    () => latestRows.filter((r) => !selectedMonth || r.month === selectedMonth),
+    [latestRows, selectedMonth]
+  );
 
-  const headerLabel = useMemo(() => {
-    if (loading) return "Loading…";
-    if (!availableDates.length) return "No uploads available";
-    if (selectedDates.length === 1) return `Upload: ${selectedDates[0]}`;
-    if (selectedDates.length > 1) {
-      const sorted = [...selectedDates].sort();
-      return `${selectedDates.length} uploads · ${sorted[0]} → ${sorted[sorted.length - 1]}`;
-    }
-    return "Pick an upload above";
-  }, [loading, availableDates.length, selectedDates]);
+  const refreshedLabel = refreshedAt
+    ? `Data refreshed ${new Date(refreshedAt).toLocaleString()}`
+    : "";
 
   return (
     <main className="min-h-screen bg-sky-100 p-8">
       <header className="mb-4">
         <h1 className="text-2xl font-semibold text-gray-900">Line Counts</h1>
         <p className="text-sm text-gray-500">
-          {headerLabel}
-          {data && ` · ${filteredRows.length.toLocaleString()} rows in view`}
+          {loading ? "Loading…" : refreshedLabel}
+          {!loading && data && ` · ${filteredRows.length.toLocaleString()} rows in view`}
         </p>
       </header>
 
@@ -87,32 +76,32 @@ export default function LineCountsPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <UploadPicker
-            availableDates={availableDates}
-            selectedDates={selectedDates}
-            onChange={setSelectedDates}
-          />
-          {availableMonths.length > 1 && (
-            <div className="flex items-center gap-2 rounded-lg border border-sky-200 bg-white p-3 shadow-md">
-              <span className="text-sm font-medium text-gray-700">Month:</span>
-              {availableMonths.map((m) => (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-sky-200 bg-white p-3 shadow-md">
+            <span className="text-sm font-medium text-gray-700">Month:</span>
+            {ALL_MONTHS.map((m) => {
+              const hasData = availableMonths.includes(m);
+              const selected = selectedMonth === m;
+              return (
                 <button
                   key={m}
                   type="button"
                   onClick={() => setSelectedMonth(m)}
+                  title={hasData ? undefined : "No data for this month yet"}
                   className={`rounded-md px-3 py-1 text-sm ${
-                    selectedMonth === m
+                    selected
                       ? "bg-sky-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      : hasData
+                      ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      : "bg-gray-50 text-gray-400 hover:bg-gray-100"
                   }`}
                 >
                   {m}
                 </button>
-              ))}
-            </div>
-          )}
+              );
+            })}
+          </div>
           <LineCountScorecards rows={filteredRows} />
-          <LineCountsTrendChart rows={data} />
+          <LineCountsTrendChart rows={latestRows} />
           <LineCountsByWriterChart rows={filteredRows} />
           <LineCountsPivotTable rows={filteredRows} />
         </div>

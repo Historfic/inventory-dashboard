@@ -1,5 +1,21 @@
 import type { LineCountRow } from "./line-counts-types";
 
+// A corrected report is re-exported with a NEW filename date, so it lands as a
+// separate report_date instead of overwriting the month it fixes. For each
+// (month, system_source, line_type) we therefore keep only the rows from the
+// most recent report_date — so the corrected export supersedes the stale one,
+// while untouched categories keep their existing values.
+export function latestByMonthTypeSystem(rows: LineCountRow[]): LineCountRow[] {
+  const maxDate = new Map<string, string>();
+  const key = (r: LineCountRow) => `${r.month}|${r.system_source}|${r.line_type}`;
+  for (const r of rows) {
+    const d = String(r.report_date);
+    const k = key(r);
+    if (!maxDate.has(k) || d > maxDate.get(k)!) maxDate.set(k, d);
+  }
+  return rows.filter((r) => maxDate.get(key(r)) === String(r.report_date));
+}
+
 export type LineCountTotals = {
   PO: { total: number; writer_count: number };
   SO: { total: number; writer_count: number };
