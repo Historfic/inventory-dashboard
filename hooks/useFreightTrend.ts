@@ -35,16 +35,29 @@ export function useFreightTrend() {
         );
         if (cancelled) return;
 
+        // Bucket by calendar month first, keeping only the latest report_date
+        // within each month — guards against pre-normalization daily dates
+        // (or a re-upload) coexisting with the current month-based dates and
+        // splintering one month into multiple trend points.
+        const latestDatePerMonth = new Map<string, string>();
+        for (const r of rows) {
+          const d = String(r.report_date);
+          const monthKey = d.slice(0, 7);
+          const current = latestDatePerMonth.get(monthKey);
+          if (!current || d > current) latestDatePerMonth.set(monthKey, d);
+        }
+
         // Per CLAUDE.md §15: weighted ratio = SUM(freight) / SUM(order) * 100.
-        // Bucket per report_date.
         type Acc = { order: number; freight: number };
         const byDate = new Map<string, Acc>();
         for (const r of rows) {
-          const key = String(r.report_date);
-          let acc = byDate.get(key);
+          const d = String(r.report_date);
+          const monthKey = d.slice(0, 7);
+          if (latestDatePerMonth.get(monthKey) !== d) continue; // stale same-month date
+          let acc = byDate.get(d);
           if (!acc) {
             acc = { order: 0, freight: 0 };
-            byDate.set(key, acc);
+            byDate.set(d, acc);
           }
           acc.order += r.gen_total_dollars ?? 0;
           acc.freight += r.freight_dollars ?? 0;

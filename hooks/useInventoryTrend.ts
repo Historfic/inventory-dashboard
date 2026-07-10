@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPages } from "@/lib/fetchAllPages";
+import { collapseToLatestPerMonth } from "@/lib/trend";
 
 export type InventoryTrendPoint = {
   report_date: string;
@@ -59,15 +60,16 @@ export function useInventoryTrend(buyer: string | null = null) {
               .range(from, to)
           );
           if (cancelled) return;
-          const points: InventoryTrendPoint[] = rows
-            .filter((r) => r.report_date != null)
-            .map((r) => ({
-              report_date: String(r.report_date),
-              total_items: toNumber(r.item_count),
-              avg_stockout_pct: r.avg_stockout_pct == null ? null : toNumber(r.avg_stockout_pct),
-              critical_fires_count: 0, // not tracked per-buyer; chart no longer renders it
-            }))
-            .sort((a, b) => a.report_date.localeCompare(b.report_date));
+          const points: InventoryTrendPoint[] = collapseToLatestPerMonth(
+            rows
+              .filter((r) => r.report_date != null)
+              .map((r) => ({
+                report_date: String(r.report_date),
+                total_items: toNumber(r.item_count),
+                avg_stockout_pct: r.avg_stockout_pct == null ? null : toNumber(r.avg_stockout_pct),
+                critical_fires_count: 0, // not tracked per-buyer; chart no longer renders it
+              }))
+          );
           setState({ data: points, loading: false, error: null });
           return;
         }
@@ -77,15 +79,16 @@ export function useInventoryTrend(buyer: string | null = null) {
           supabase.from("inventory_daily_summary").select("*").range(from, to)
         );
         if (cancelled) return;
-        const points: InventoryTrendPoint[] = rows
-          .filter((r) => r.report_date != null)
-          .map((r) => ({
-            report_date: String(r.report_date),
-            total_items: toNumber(r.total_items),
-            avg_stockout_pct: r.avg_stockout_pct == null ? null : toNumber(r.avg_stockout_pct),
-            critical_fires_count: toNumber(r.critical_fires_count),
-          }))
-          .sort((a, b) => a.report_date.localeCompare(b.report_date));
+        const points: InventoryTrendPoint[] = collapseToLatestPerMonth(
+          rows
+            .filter((r) => r.report_date != null)
+            .map((r) => ({
+              report_date: String(r.report_date),
+              total_items: toNumber(r.total_items),
+              avg_stockout_pct: r.avg_stockout_pct == null ? null : toNumber(r.avg_stockout_pct),
+              critical_fires_count: toNumber(r.critical_fires_count),
+            }))
+        );
         setState({ data: points, loading: false, error: null });
       } catch (err) {
         if (cancelled) return;

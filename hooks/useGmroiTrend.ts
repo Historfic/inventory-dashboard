@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPages } from "@/lib/fetchAllPages";
 import { ALL_BRANCHES, type GmroiRow } from "@/lib/gmroi-types";
+import { collapseToLatestPerMonth } from "@/lib/trend";
 
 export type GmroiTrendPoint = {
   report_date: string;
@@ -36,18 +37,19 @@ export function useGmroiTrend() {
         if (cancelled) return;
         // Per CLAUDE.md §14, the company-wide GMROI per upload lives in the
         // single "Grand Totals / All Branches" row of each snapshot.
-        const points: GmroiTrendPoint[] = rows
-          .filter(
-            (r) =>
-              r.buy_line === GRAND_TOTALS &&
-              r.branch_id === ALL_BRANCHES &&
-              r.gmroi != null
-          )
-          .map((r) => ({
-            report_date: String(r.report_date),
-            gmroi: r.gmroi as number,
-          }))
-          .sort((a, b) => a.report_date.localeCompare(b.report_date));
+        const points: GmroiTrendPoint[] = collapseToLatestPerMonth(
+          rows
+            .filter(
+              (r) =>
+                r.buy_line === GRAND_TOTALS &&
+                r.branch_id === ALL_BRANCHES &&
+                r.gmroi != null
+            )
+            .map((r) => ({
+              report_date: String(r.report_date),
+              gmroi: r.gmroi as number,
+            }))
+        );
         setState({ data: points, loading: false, error: null });
       } catch (err) {
         if (cancelled) return;
