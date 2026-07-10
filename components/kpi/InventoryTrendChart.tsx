@@ -13,6 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useInventoryTrend } from "@/hooks/useInventoryTrend";
 import { useFilterState } from "@/hooks/useFilterState";
+import { formatMonthLabel } from "@/lib/format";
 
 export function InventoryTrendChart() {
   const { filters } = useFilterState();
@@ -45,10 +46,11 @@ export function InventoryTrendChart() {
         <ResponsiveContainer>
           <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
             <CartesianGrid stroke="#e5e7eb" vertical={false} />
-            <XAxis dataKey="report_date" tick={{ fontSize: 12 }} />
+            <XAxis dataKey="report_date" tick={{ fontSize: 12 }} tickFormatter={formatMonthLabel} />
             <YAxis tick={{ fontSize: 12 }} tickFormatter={(v: number) => `${Math.round(v)}%`} />
             <Tooltip
               cursor={{ stroke: "#cbd5e1" }}
+              labelFormatter={formatMonthLabel}
               formatter={(value) => {
                 const n = typeof value === "number" ? value : Number(value);
                 return [`${n.toFixed(1)}%`, "Avg stockout"];

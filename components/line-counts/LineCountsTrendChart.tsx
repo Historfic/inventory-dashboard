@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LINE_TYPES, type LineCountRow } from "@/lib/line-counts-types";
+import { formatMonthLabel } from "@/lib/format";
 
 const COLORS: Record<(typeof LINE_TYPES)[number], string> = {
   PO: "#1d4ed8",
@@ -66,9 +67,9 @@ export function LineCountsTrendChart({ rows }: { rows: LineCountRow[] }) {
             <ResponsiveContainer>
               <AreaChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                 <CartesianGrid stroke="#e5e7eb" vertical={false} />
-                <XAxis dataKey="report_date" tick={{ fontSize: 12 }} />
+                <XAxis dataKey="report_date" tick={{ fontSize: 12 }} tickFormatter={formatMonthLabel} />
                 <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip cursor={{ fill: "rgba(0,0,0,0.04)" }} />
+                <Tooltip cursor={{ fill: "rgba(0,0,0,0.04)" }} labelFormatter={formatMonthLabel} />
                 <Legend />
                 {LINE_TYPES.map((type) => (
                   <Area

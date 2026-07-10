@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGmroiTrend } from "@/hooks/useGmroiTrend";
+import { formatMonthLabel } from "@/lib/format";
 
 export function GmroiTrendChart() {
   const { data, loading, error } = useGmroiTrend();
@@ -32,9 +33,10 @@ export function GmroiTrendChart() {
         <ResponsiveContainer>
           <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
             <CartesianGrid stroke="#e5e7eb" vertical={false} />
-            <XAxis dataKey="report_date" tick={{ fontSize: 12 }} />
+            <XAxis dataKey="report_date" tick={{ fontSize: 12 }} tickFormatter={formatMonthLabel} />
             <YAxis tick={{ fontSize: 12 }} tickFormatter={(v: number) => v.toFixed(2)} />
             <Tooltip
+              labelFormatter={formatMonthLabel}
               formatter={(value) => {
                 const n = typeof value === "number" ? value : Number(value);
                 return [n.toFixed(3), "GMROI"];
