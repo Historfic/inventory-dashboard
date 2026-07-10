@@ -181,12 +181,29 @@ Each branch:
 
 ### Important conventions
 
-- **File names** must start with `YYYYMMDD_` (8-digit date). The parser
-  splits on `_`, takes `parts[0]`, and reads the date from positions
-  0–4 (year), 4–6 (month), 6–8 (day). A file named `Copy of 20260511_…`
-  will be silently skipped because `parts[0]` becomes "Copy of 20260511"
-  and the date parse fails. **Duplicate files in Drive are common
-  failure mode — keep folders clean.**
+- **File names** must start with a month name (e.g. `July …`, `Jul …`),
+  not a date. The Metadata Parser nodes tokenize the file name and take
+  the first token that matches a month name/abbreviation; everything is
+  normalized to the 1st of that month (`report_date = YYYY-MM-01`) so
+  trend lines sort by the period the data represents, not the date it
+  was uploaded. Days Out files additionally carry the branch as the
+  token right after the month (`HAS_BRANCH = true` on that parser only —
+  every other branch pulls its branch value from the CSV content
+  instead, via its Cleaner node).
+- **Year in the file name is optional but should not be.** The parser
+  looks for an embedded `YYYYMMDD` date code first, then a bare 4-digit
+  `20xx` year anywhere in the name, and only falls back to the current
+  calendar year if neither is present. **Reminder for Oliver:** keep
+  *some* year marker in every file name even under the new month-title
+  convention (a bare 4-digit year is enough) — without one, files from
+  different years but the same month (e.g. "July" 2026 vs "July" 2027)
+  can't be told apart for chronological sorting once more than one
+  year of history has accumulated.
+- **Archive / Test / Bad folders are excluded twice**: once by the
+  `List Branch Files` Drive query itself, and again inside each
+  Metadata Parser as a belt-and-suspenders check on the file's path/
+  folder metadata — so a misconfigured Drive query can't leak files
+  from those folders into Supabase.
 - **`MAX_AGE_DAYS = 35`** on the monthly parsers. Files older than that
   are skipped. Set to 35 to cover a one-month cadence with slack.
 - **`buy_line='Grand Totals'`** is a special label the GMROI report uses
