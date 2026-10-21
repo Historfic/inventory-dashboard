@@ -150,7 +150,9 @@ normal-vision worst adjacent ΔE 22.9 PASS. Contrast WARN for slots 3 and 4 (aqu
 - Lines: `strokeWidth={2}`, round caps/joins, no dots except the active (hover) dot: r=4, series fill,
   2px white ring.
 - The three single-series trends (Inventory, GMROI, Freight) stay `<Line>` charts. The only area chart,
-  the Line Counts trend, is a stacked `<Area>`: solid series fills with a 2px white stroke between layers.
+  the Line Counts trend, is a stacked `<Area>`: series fills at 85% opacity with a 2px edge in the series
+  colour. (Not a white edge: Recharts takes an Area's legend and tooltip colour from its `stroke`, so a white
+  stroke would blank both. Stacked *bars* take theirs from `fill`, so they keep the 2px white gap.)
 - Grid: horizontal only, solid 1px `#e5e7eb`. Axis ticks 12px `#6b7280`, no axis lines. The two Line
   Counts charts' y-axes (currently unformatted, values reach six figures) get compact ticks from 1,000
   (1K, 2K, 500K); every other axis keeps its existing `%` / ratio formatter.
@@ -182,8 +184,10 @@ the exact lines for the owner to add.
 1. **Baseline first:** before any change, run `npm run dev` and capture full-page screenshots of the four
    pages at 1440×900, and record the visible headline figures (stat-tile values, snapshot date, item
    counts, first rows of each table).
-2. After the change: `npm run build` (zero errors), `npm run lint`, `npx tsx lib/aggregations.test.ts`,
-   `npx tsx lib/alerts.test.ts`.
+2. After the change: `npm run build` (zero errors); lint introduces **no new problems** compared with the
+   2026-10-21 baseline (19 pre-existing: 8 errors, 11 warnings, none in this work's scope except the two
+   `react/no-unescaped-entities` errors in `GmroiTrendChart.tsx`, which this work removes);
+   `npx tsx lib/aggregations.test.ts`, `npx tsx lib/alerts.test.ts`.
 3. Re-capture the same screenshots and figures. **Every recorded figure must match the baseline
    exactly**; any difference is a bug in this work.
 4. Look at each "after" screenshot for clipped labels, nested scrollbars, and overflow; check keyboard
