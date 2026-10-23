@@ -9,7 +9,7 @@ export function FilterChip({ label, onRemove }: { label: string; onRemove: () =>
       onClick={onRemove}
       title={`Remove ${label}`}
       aria-label={`Remove ${label}`}
-      className="inline-flex items-center gap-1.5 rounded-full bg-brand-subtle px-3 py-1 text-xs font-medium text-primary transition-shadow hover:ring-1 hover:ring-brand/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-brand-subtle px-3 py-1 text-xs font-medium text-primary transition-shadow hover:ring-1 hover:ring-brand/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-0"
     >
       <span>{label}</span>
       <X className="size-3" aria-hidden />
@@ -23,7 +23,7 @@ export function ClearFiltersButton({ onClick, className }: { onClick: () => void
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-sm text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "inline-flex min-h-10 items-center rounded-sm text-xs font-medium text-primary hover:underline sm:min-h-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className
       )}
     >

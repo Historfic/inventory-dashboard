@@ -40,7 +40,8 @@ export function BranchFilter({ available, selected, onChange }: Props) {
       <PopoverTrigger
         className={cn(
           buttonVariants({ variant: "outline", size: "default" }),
-          "min-w-[160px] justify-between"
+          // Phones: full-width, 40px tall. From sm up: the usual 32px control, at least 160px wide.
+          "h-10 w-full min-w-[160px] justify-between sm:h-8 sm:w-auto"
         )}
       >
         <span>{label}</span>
@@ -51,7 +52,7 @@ export function BranchFilter({ available, selected, onChange }: Props) {
           <button
             type="button"
             onClick={clear}
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-accent"
+            className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent sm:py-1.5"
           >
             <span
               className={`inline-block h-4 w-4 rounded border ${
@@ -68,7 +69,7 @@ export function BranchFilter({ available, selected, onChange }: Props) {
                 key={b}
                 type="button"
                 onClick={() => toggle(b)}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-accent"
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent sm:py-1.5"
               >
                 <span
                   className={`inline-block h-4 w-4 rounded border ${

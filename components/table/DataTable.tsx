@@ -29,10 +29,15 @@ function isNumeric(meta: unknown): boolean {
   return (meta as { numeric?: boolean } | undefined)?.numeric === true;
 }
 
-/** Sticky-header, sortable body shared by every dashboard table. Columns and sorting stay with the caller. */
+/**
+ * Sticky-header, sortable body shared by every dashboard table. Columns and sorting stay with the caller.
+ * Below md the scroll area is capped at 60% of the screen height (whatever the caller's desktop height), so a
+ * long table never fills the phone screen and the page itself stays easy to scroll. Wide tables scroll sideways
+ * inside the card.
+ */
 export function DataTable<T>({ table, maxHeightClass, onRowClick, isRowSelected }: Props<T>) {
   return (
-    <Table containerClassName={maxHeightClass}>
+    <Table containerClassName={cn(maxHeightClass, "max-md:max-h-[60svh]")}>
       <TableHeader>
         {table.getHeaderGroups().map((hg) => (
           <TableRow key={hg.id}>

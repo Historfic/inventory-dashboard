@@ -92,7 +92,7 @@ export default function LineCountsPage() {
                   aria-pressed={selected}
                   title={hasData ? undefined : "No data for this month yet"}
                   className={cn(
-                    "rounded-lg px-3 py-1 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "rounded-lg px-3 py-2.5 text-sm font-medium transition-colors sm:py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     selected
                       ? "bg-primary text-primary-foreground"
                       : hasData

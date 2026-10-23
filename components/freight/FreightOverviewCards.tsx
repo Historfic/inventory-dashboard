@@ -18,10 +18,17 @@ export function FreightOverviewCards({ rows }: { rows: InboundFreightRow[] }) {
     },
   ];
 
+  // Phones: Total Order $ full width on top, the other two side by side. From sm up: three across.
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      {cards.map((card) => (
-        <StatTile key={card.label} label={card.label} value={card.value} sublabel={card.sub} />
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      {cards.map((card, i) => (
+        <StatTile
+          key={card.label}
+          label={card.label}
+          value={card.value}
+          sublabel={card.sub}
+          className={i === 0 ? "col-span-2 sm:col-span-1" : undefined}
+        />
       ))}
     </div>
   );

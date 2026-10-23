@@ -48,10 +48,10 @@ export function UploadPicker({ availableDates, selectedDates, onChange }: Props)
       description="Pick one upload, or select multiple to combine totals across reports."
     >
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" onClick={selectLatest}>
+        <Button variant="outline" size="sm" className="h-10 sm:h-7" onClick={selectLatest}>
           Latest only
         </Button>
-        <Button variant="outline" size="sm" onClick={selectAll}>
+        <Button variant="outline" size="sm" className="h-10 sm:h-7" onClick={selectAll}>
           Select all ({availableDates.length})
         </Button>
         <span className="mx-1 h-4 w-px bg-border" aria-hidden />
@@ -64,7 +64,7 @@ export function UploadPicker({ availableDates, selectedDates, onChange }: Props)
               onClick={() => toggle(date)}
               aria-pressed={selected}
               className={cn(
-                "rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "rounded-full px-3 py-3 text-xs font-medium transition-colors sm:py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 selected
                   ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : "bg-muted text-foreground hover:bg-brand-subtle"

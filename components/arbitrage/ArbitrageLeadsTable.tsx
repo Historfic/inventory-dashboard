@@ -266,8 +266,9 @@ export function ArbitrageLeadsTable({ leads, now }: { leads: ArbitrageLead[]; no
     getSortedRowModel: getSortedRowModel(),
   });
 
+  // Phones: 40px tall (py-3) for a comfortable tap; from sm up the compact 24px pill.
   const pill = (active: boolean) =>
-    `rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+    `rounded-full px-3 py-3 text-xs font-medium transition-colors sm:py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
       active ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-muted text-foreground hover:bg-muted/80"
     }`;
 

@@ -1,15 +1,19 @@
 import type { ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
-type Props = { label: string; value: ReactNode; sublabel?: ReactNode };
+type Props = { label: string; value: ReactNode; sublabel?: ReactNode; className?: string };
 
-/** Headline number. Proportional figures on purpose: tabular-nums makes big numbers look loose. */
-export function StatTile({ label, value, sublabel }: Props) {
+/**
+ * Headline number. Proportional figures on purpose: tabular-nums makes big numbers look loose.
+ * Phones show tiles two-up, so the value steps down to text-xl there ("$46,175,015" must fit a half-width tile).
+ */
+export function StatTile({ label, value, sublabel, className }: Props) {
   return (
-    <Card className="shadow-sm">
+    <Card className={cn("min-w-0 shadow-sm", className)}>
       <CardContent className="flex flex-col gap-1">
         <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="text-3xl font-semibold tracking-tight text-foreground">{value}</p>
+        <p className="text-xl font-semibold tracking-tight whitespace-nowrap text-foreground sm:text-3xl">{value}</p>
         {sublabel && <p className="text-xs text-muted-foreground">{sublabel}</p>}
       </CardContent>
     </Card>

@@ -15,8 +15,9 @@ import {
 type Phase = "idle" | "starting" | "running" | "done" | "error";
 const RUN_TIMEOUT_MS = 4 * 60_000;
 
+// Phones: at least 40×40 (py-3, min-w-10) for a comfortable tap; from sm up the compact 24px pill.
 const pill = (active: boolean) =>
-  `rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${
+  `min-w-10 rounded-full px-3 py-3 text-xs font-medium transition-colors sm:min-w-0 sm:py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${
     active ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-muted text-foreground hover:bg-muted/80"
   }`;
 
@@ -111,7 +112,7 @@ export function RunSourcingPanel({ lastRunId, onRunFinished }: Props) {
     >
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="w-20 text-xs uppercase tracking-wide text-muted-foreground">Category</span>
+          <span className="w-full text-xs uppercase tracking-wide text-muted-foreground sm:w-20">Category</span>
           {ARBITRAGE_CATEGORIES.map((c) => (
             <button
               key={c.url}
@@ -126,7 +127,7 @@ export function RunSourcingPanel({ lastRunId, onRunFinished }: Props) {
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="w-20 text-xs uppercase tracking-wide text-muted-foreground">Products</span>
+          <span className="w-full text-xs uppercase tracking-wide text-muted-foreground sm:w-20">Products</span>
           {PRODUCT_COUNT_OPTIONS.map((n) => (
             <button
               key={n}
@@ -141,7 +142,7 @@ export function RunSourcingPanel({ lastRunId, onRunFinished }: Props) {
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <Button size="lg" onClick={start} disabled={busy || shortOnTokens}>
+          <Button size="lg" className="h-10 sm:h-9" onClick={start} disabled={busy || shortOnTokens}>
             {busy ? (
               <>
                 <Loader2 className="animate-spin" aria-hidden /> Running…
