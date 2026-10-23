@@ -3,6 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLineCountsData } from "@/hooks/useLineCountsData";
 import { latestByMonthTypeSystem } from "@/lib/line-counts-aggregations";
+import { pageView } from "@/lib/page-state";
+import { cn } from "@/lib/utils";
+import { PageContent, PageShell } from "@/components/layout/PageShell";
+import { LoadingState } from "@/components/layout/LoadingState";
+import { ErrorState } from "@/components/layout/ErrorState";
+import { EmptyCard } from "@/components/layout/EmptyState";
+import { FilterBar } from "@/components/filters/FilterBar";
 import { LineCountScorecards } from "@/components/line-counts/LineCountScorecards";
 import { LineCountsByWriterChart } from "@/components/line-counts/LineCountsByWriterChart";
 import { LineCountsPivotTable } from "@/components/line-counts/LineCountsPivotTable";
@@ -52,32 +59,28 @@ export default function LineCountsPage() {
     ? `Data refreshed ${new Date(refreshedAt).toLocaleString()}`
     : "";
 
+  const view = pageView({ loading, error, data });
+
   return (
-    <main className="min-h-screen bg-sky-100 p-8">
-      <header className="mb-4">
-        <h1 className="text-2xl font-semibold text-gray-900">Line Counts</h1>
-        <p className="text-sm text-gray-500">
+    <PageShell
+      title="Line Counts"
+      subtitle={
+        <>
           {loading ? "Loading…" : refreshedLabel}
           {!loading && data && ` · ${filteredRows.length.toLocaleString()} rows in view`}
-        </p>
-      </header>
-
-      {error ? (
-        <div className="rounded-lg border border-red-200 bg-white p-6 text-sm text-red-700 shadow-md">
-          Error loading data: {error}
-        </div>
-      ) : loading ? (
-        <div className="rounded-lg bg-white p-12 text-center text-sm text-gray-500 border border-sky-200 shadow-md">
-          Loading…
-        </div>
-      ) : !data || data.length === 0 ? (
-        <div className="rounded-lg bg-white p-12 text-center text-sm text-gray-500 border border-sky-200 shadow-md">
-          No line count data available.
-        </div>
+        </>
+      }
+    >
+      {view === "error" ? (
+        <ErrorState message={error ?? ""} />
+      ) : view === "loading" ? (
+        <LoadingState tiles={4} />
+      ) : view === "empty" || !data ? (
+        <EmptyCard message="No line count data available." />
       ) : (
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-sky-200 bg-white p-3 shadow-md">
-            <span className="text-sm font-medium text-gray-700">Month:</span>
+        <PageContent refreshing={view === "refreshing"}>
+          <FilterBar className="gap-2">
+            <span className="text-sm font-medium text-foreground">Month:</span>
             {ALL_MONTHS.map((m) => {
               const hasData = availableMonths.includes(m);
               const selected = selectedMonth === m;
@@ -86,26 +89,28 @@ export default function LineCountsPage() {
                   key={m}
                   type="button"
                   onClick={() => setSelectedMonth(m)}
+                  aria-pressed={selected}
                   title={hasData ? undefined : "No data for this month yet"}
-                  className={`rounded-md px-3 py-1 text-sm ${
+                  className={cn(
+                    "rounded-lg px-3 py-1 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     selected
-                      ? "bg-sky-600 text-white"
+                      ? "bg-primary text-primary-foreground"
                       : hasData
-                      ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      : "bg-gray-50 text-gray-400 hover:bg-gray-100"
-                  }`}
+                      ? "bg-muted text-foreground hover:bg-brand-subtle"
+                      : "text-muted-foreground/70 hover:bg-muted"
+                  )}
                 >
                   {m}
                 </button>
               );
             })}
-          </div>
+          </FilterBar>
           <LineCountScorecards rows={filteredRows} />
           <LineCountsTrendChart rows={latestRows} />
           <LineCountsByWriterChart rows={filteredRows} />
           <LineCountsPivotTable rows={filteredRows} />
-        </div>
+        </PageContent>
       )}
-    </main>
+    </PageShell>
   );
 }

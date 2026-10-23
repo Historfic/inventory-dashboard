@@ -9,3 +9,12 @@ export function EmptyState({ message }: { message: string }) {
     </div>
   );
 }
+
+/** Page-level empty state: the same message in a white card. */
+export function EmptyCard({ message }: { message: string }) {
+  return (
+    <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/10">
+      <EmptyState message={message} />
+    </div>
+  );
+}
