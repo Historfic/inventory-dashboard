@@ -5,7 +5,7 @@
 > without a technical background, and the lower sections give a developer
 > enough detail to make changes confidently.
 >
-> **Last updated:** 2026-05-23
+> **Last updated:** 2026-10-23 (Arbitrage page added)
 
 ---
 
@@ -61,7 +61,7 @@ breaks on the dashboard.
 
 ## 1. What was built
 
-Four dashboard pages, one shared navigation bar, all on the same private URL:
+Five dashboard pages, one shared navigation bar, all on the same private URL:
 
 | Page | Purpose | Data refreshes |
 |---|---|---|
@@ -69,6 +69,7 @@ Four dashboard pages, one shared navigation bar, all on the same private URL:
 | **Turns** (`/gmroi`) | Inventory turns and margins, broken down by branch, buy line, and buyer. | Monthly |
 | **Inbound Freight** (`/freight`) | Freight-cost ratios per writer and per vendor. Surfaces high-freight orders. | Monthly |
 | **Line Counts** (`/line-counts`) | PO/SO/Direct/Transfer line counts per writer. | Monthly |
+| **Arbitrage** (`/arbitrage`) | Products PlumbersStock sells, checked against Amazon prices (via Keepa) after Amazon's fees, to find resale opportunities. Has a "Run sourcing" button. Separate pipeline and database — see section 6 and `CLAUDE.md §19`. | On demand |
 
 Plus, layered on top:
 
@@ -306,9 +307,30 @@ re-summing in JavaScript.
 - Stacked bar chart by Writer.
 - Pivot table by Writer × line type.
 
+### Arbitrage (`/arbitrage`)
+
+Added 2026-10-23 (merged from the standalone arbitrage dashboard).
+
+- **Run sourcing** panel: pick a PlumbersStock category and how many products
+  (3–15), press the button. Shows the Keepa token balance and whether the n8n
+  run is in progress; the page refreshes itself when the run finishes
+  (usually 20–40 seconds).
+- **4 scorecards**: leads tracked, profitable leads, best ROI, last run.
+- **Leads table**: product (with PlumbersStock / Amazon / Keepa links), cost,
+  Amazon price, fees, net profit, ROI, margin, sales rank, offers, status.
+  "Profitable" filter. Leads whose Amazon data is more than 7 days old are
+  marked *Stale* and never count as profitable.
+- **Recent runs** table: the last 10 sourcing runs and their result.
+
+Different from the other four pages: the data comes from a **second Supabase
+project** (`mvsjswojnwhokqpkgxfq`) and a **second n8n workflow** ("Arbitrage
+Sourcing Pipeline", `rp4eA4ObqA4JVNMO`). Its code lives in
+`scripts/arbitrage/`. Keepa (the Amazon price source) refills only 1 token a
+minute, so runs stay small.
+
 ### Navigation order
 
-Top nav left-to-right: **Days Out | Turns | Line Counts | Inbound Freight**.
+Top nav left-to-right: **Days Out | Turns | Line Counts | Inbound Freight | Arbitrage**.
 
 ---
 
@@ -510,6 +532,11 @@ The dashboard needs three env vars in Vercel:
 - `NEXT_PUBLIC_SUPABASE_URL` — the Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — the anon key (read-only on views)
 - `ANTHROPIC_API_KEY` — server-side only, no `NEXT_PUBLIC_` prefix
+
+Plus eight for the Arbitrage page (all prefixed `ARBITRAGE`; full table in
+`CLAUDE.md §19`): two browser-safe Supabase values for the arbitrage project,
+and six server-only values for n8n (API URL, API key, workflow ID, webhook
+URL, webhook secret) and Keepa.
 
 Set them in all three environments (Production, Preview, Development).
 Local development uses `.env.local` (not committed).

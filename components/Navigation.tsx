@@ -9,6 +9,7 @@ const links = [
   { href: "/gmroi", label: "Turns" },
   { href: "/line-counts", label: "Line Counts" },
   { href: "/freight", label: "Inbound Freight" },
+  { href: "/arbitrage", label: "Arbitrage" },
 ];
 
 export function Navigation() {

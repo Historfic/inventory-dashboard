@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // n8n Code-node bodies (top-level return/await) — not ES modules; tested
+    // by scripts/arbitrage/n8n/test/code-nodes.test.mjs instead.
+    "scripts/arbitrage/n8n/code/**",
   ]),
 ]);
 

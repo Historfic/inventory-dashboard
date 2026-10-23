@@ -982,4 +982,69 @@ GMROI / Freight / Line Counts trends do not (yet) wire to their buyer/writer cli
 
 ---
 
+## 19. Arbitrage Leads Page (`/arbitrage`)
+
+Merged in from the standalone "Automated Arbitrage Engine" (2026-10-23). Finds
+products PlumbersStock sells that could be resold on Amazon: scrape a
+PlumbersStock category → match each UPC to an Amazon ASIN through **Keepa** →
+compute fees, net profit, ROI and margin → show the leads here. It is a
+**separate pipeline and a separate database** from everything above.
+
+### Hard rules
+
+- **No Amazon SP-API / Seller Central / AWS IAM.** Market data comes from Keepa only. Do not suggest or write code for Amazon internal APIs.
+- **Different Supabase project.** `arbitrage_leads` and `sourcing_runs` live in the arbitrage project (`mvsjswojnwhokqpkgxfq`), not the inventory project (§3). The page uses a second client, `lib/supabase-arbitrage.ts`. Never point inventory hooks at it, or arbitrage hooks at `lib/supabase.ts`. (That project also still holds a stale June copy of the inventory tables from before the §3 switch — ignore it; the dashboard never reads it.)
+- **Different n8n workflow.** "Arbitrage Sourcing Pipeline" (`rp4eA4ObqA4JVNMO`) on the same n8n instance. It never touches the Branch Report Pipeline (`tLvIuvkmtztVT9JZ`), and the Branch Report rules in §2.5 / §12 don't apply to it. Edit its code only in `scripts/arbitrage/n8n/code/` and deploy with `node scripts/arbitrage/n8n/deploy.mjs` — never in the n8n editor (the next deploy would overwrite it).
+- **Keepa is the bottleneck.** Plan refills 1 token/min (60 max); a matched product costs ~3 tokens. Runs are capped at 15 products; the trigger route refuses runs that would overdraw the balance or overlap a running execution.
+- **Stale = never profitable.** Keepa returns its last snapshot for listings it can't refresh (usually dead ASINs). Leads whose Keepa data is older than 7 days get `is_stale = true` and `is_profitable = false`, whatever the ROI says. A fake 122% ROI lead was caught this way.
+- **Supplier scraping etiquette.** The scraper identifies as `ArbitrageSourcingBot/1.0` (Cloudflare blocks a Chrome User-Agent from Node), fetches sequentially with a pause, and only accepts the category URLs listed in `lib/arbitrage-config.ts`.
+
+### Data flow
+
+```
+/arbitrage "Run sourcing" → POST /api/arbitrage/trigger (server: guards + secret header)
+  → n8n webhook → scrape category ItemList → product JSON-LD (UPC, price, stock)
+  → ONE bulk Keepa /product call → Arbitrage Sanitizer (fees, ROI, stale check)
+  → upsert arbitrage_leads (unique upc+asin) → insert sourcing_runs
+/arbitrage polls GET /api/arbitrage/status (latest run, n8n state, Keepa balance)
+  → on a new run row, reloads leads + runs from Supabase (anon, SELECT only)
+```
+
+### Economics (Arbitrage Sanitizer)
+
+`net profit = Amazon price − referral fee (Keepa %, min $0.30) − FBA pick & pack (Keepa; $6.50 estimate if missing) − prep − supplier cost`.
+Amazon price = Buy Box (incl. shipping) if present, else lowest new, else Amazon's own offer. Keepa `-1`/`-2` sentinels become `null`. **Profitable** = ROI ≥ 30%, profit ≥ $3, not stale. Not modelled yet: inbound shipping, sales tax, storage. Round only for display (`lib/arbitrage-format.ts`), per §4.3.
+
+### Files
+
+| Path | Role |
+|---|---|
+| `app/arbitrage/page.tsx` | Page (client), same layout pattern as the other pages |
+| `components/arbitrage/*` | Run Sourcing panel, overview cards, leads table (TanStack), runs table |
+| `hooks/useArbitrageData.ts` | Leads (paged via `fetchAllPages`, fresh first, best ROI first) + 10 latest runs; `reload()` |
+| `hooks/useArbitrageStatus.ts` | Polls `/api/arbitrage/status` |
+| `app/api/arbitrage/{trigger,status}/route.ts` | Server routes; secrets stay server-side (same pattern as §17) |
+| `lib/arbitrage-*.ts`, `lib/supabase-arbitrage.ts` | Types, config (categories, Keepa constants), formatters, server helpers, second client |
+| `scripts/arbitrage/n8n/` | Workflow source (`code/*.js`), `deploy.mjs`, `deploy-state.json` (credential + workflow IDs, no secrets), tests |
+| `scripts/arbitrage/supabase/migrations/` | Schema for the two tables + anon read policy |
+
+### Environment variables
+
+| Variable | Where | Notes |
+|---|---|---|
+| `NEXT_PUBLIC_ARBITRAGE_SUPABASE_URL`, `NEXT_PUBLIC_ARBITRAGE_SUPABASE_ANON_KEY` | Vercel + `.env.local` | Browser-safe; anon/publishable key of the arbitrage project, SELECT-only by RLS |
+| `ARBITRAGE_N8N_API_URL`, `ARBITRAGE_N8N_API_KEY`, `ARBITRAGE_N8N_WORKFLOW_ID` | Vercel + `.env.local` | Server-only; status route reads execution state |
+| `ARBITRAGE_N8N_WEBHOOK_URL`, `ARBITRAGE_N8N_WEBHOOK_SECRET` | Vercel + `.env.local` | Server-only; trigger route |
+| `ARBITRAGE_KEEPA_API_KEY` | Vercel + `.env.local` | Server-only; token balance (free endpoint) |
+| `ARBITRAGE_SUPABASE_SECRET_KEY` | `.env.local` only | Deploy script, only when an n8n credential must be (re)created. **Never add to Vercel.** |
+
+The `ARBITRAGE_` prefix keeps these apart from the Branch Report scripts' `N8N_API_TOKEN` / `N8N_BASE_URL`.
+
+### Tests
+
+- `node scripts/arbitrage/n8n/test/code-nodes.test.mjs` — runs the n8n Code-node sources with a mocked n8n runtime (economics, -1/-2 cleaning, flat-mapped Keepa JSON, stale rule, 429 / missing-key handling). Add `--live` to scrape 3 real products.
+- `node scripts/arbitrage/n8n/deploy.mjs --dry-run` — rebuilds `arbitrage-sourcing.workflow.json` without touching n8n.
+
+---
+
 **End of CLAUDE.md.** When in doubt, re-read Section 0 (Session Mode) and Section 4 (the Traps) before writing code that aggregates anything or modifying the pipeline.

@@ -1,0 +1,17 @@
+{
+  "credentials": {
+    "keepa": {
+      "id": "iXLBLxYJvAmZyo7Z",
+      "name": "Keepa API - Arbitrage"
+    },
+    "supabase": {
+      "id": "8RhEBDOfTdOr54Vw",
+      "name": "Supabase - Arbitrage Engine"
+    },
+    "webhook": {
+      "id": "S22eeWZ7nJxnlcFR",
+      "name": "Arbitrage Dashboard Webhook Secret"
+    }
+  },
+  "workflowId": "rp4eA4ObqA4JVNMO"
+}
