@@ -17,7 +17,7 @@ import type { SourcingRun } from "@/lib/arbitrage-types";
 
 const STATUS = {
   success: { label: "Success", Icon: CheckCircle2, icon: "text-status-good" },
-  partial: { label: "Partial", Icon: AlertTriangle, icon: "text-status-warning" },
+  partial: { label: "Partial", Icon: AlertTriangle, icon: "fill-status-warning text-foreground" },
   error: { label: "Failed", Icon: XCircle, icon: "text-status-critical" },
 } as const;
 

@@ -25,7 +25,7 @@ function Notice({ tone, children }: { tone: "info" | "success" | "warn" | "error
   const styles = {
     info: { icon: "text-primary", Icon: Loader2, spin: true },
     success: { icon: "text-status-good", Icon: CheckCircle2, spin: false },
-    warn: { icon: "text-status-warning", Icon: AlertTriangle, spin: false },
+    warn: { icon: "fill-status-warning text-foreground", Icon: AlertTriangle, spin: false },
     error: { icon: "text-status-critical", Icon: XCircle, spin: false },
   }[tone];
   const { Icon } = styles;

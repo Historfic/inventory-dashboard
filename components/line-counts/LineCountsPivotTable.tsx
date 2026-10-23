@@ -36,7 +36,7 @@ const flagCell = (value: unknown) => {
       title={flagged ? "Unusually high value — please verify with Todd before reporting" : undefined}
     >
       {flagged && (
-        <TriangleAlert className="size-3.5 text-status-warning" role="img" aria-label="Needs verification" />
+        <TriangleAlert className="size-3.5 fill-status-warning text-foreground" role="img" aria-label="Needs verification" />
       )}
       {formatInteger(n)}
     </span>

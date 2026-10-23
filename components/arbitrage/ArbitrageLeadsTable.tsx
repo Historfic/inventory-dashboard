@@ -40,7 +40,7 @@ function StatusBadge({ lead }: { lead: ArbitrageLead }) {
         className={base}
         title="Keepa couldn't refresh this listing recently; the Amazon price may be out of date."
       >
-        <AlertTriangle className="size-3.5 text-status-warning" aria-hidden /> Stale Amazon data
+        <AlertTriangle className="size-3.5 fill-status-warning text-foreground" aria-hidden /> Stale Amazon data
       </span>
     );
   }
