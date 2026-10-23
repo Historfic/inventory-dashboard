@@ -11,13 +11,20 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardCard } from "@/components/layout/DashboardCard";
+import { EmptyState } from "@/components/layout/EmptyState";
+import { ChartTooltip } from "@/components/charts/ChartTooltip";
 import { aggregateFreightByWriter } from "@/lib/inbound-freight-aggregations";
+import {
+  axisProps,
+  BAR_CURSOR,
+  barProps,
+  DIMMED_BAR,
+  gridProps,
+  SERIES,
+} from "@/lib/chart-theme";
 import { useFreightFilterState } from "@/hooks/useFreightFilterState";
 import type { InboundFreightRow } from "@/lib/inbound-freight-types";
-
-const BAR_COLOR = "#1d4ed8";
-const BAR_DIMMED = "#94a3b8";
 
 export function FreightPctByWriterChart({ rows }: { rows: InboundFreightRow[] }) {
   const { filters, toggleWriter } = useFreightFilterState();
@@ -33,55 +40,44 @@ export function FreightPctByWriterChart({ rows }: { rows: InboundFreightRow[] })
   }, [rows]);
 
   return (
-    <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
-      <CardHeader>
-        <CardTitle>Freight % of Order — by Writer</CardTitle>
-        <p className="text-xs text-muted-foreground">
-          Weighted: total freight $ / total order $. Sorted descending.
-        </p>
-      </CardHeader>
-      <CardContent>
-        {data.length === 0 ? (
-          <div className="py-12 text-center text-sm text-gray-500">
-            No writers with non-zero freight ratio.
-          </div>
-        ) : (
-          <div style={{ width: "100%", height: 320 }}>
-            <ResponsiveContainer>
-              <BarChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 40 }}>
-                <CartesianGrid stroke="#e5e7eb" vertical={false} />
-                <XAxis
-                  dataKey="writer"
-                  angle={-30}
-                  textAnchor="end"
-                  height={60}
-                  tick={{ fontSize: 12 }}
-                />
-                <YAxis
-                  tick={{ fontSize: 12 }}
-                  tickFormatter={(v: number) => `${v.toFixed(1)}%`}
-                />
-                <Tooltip
-                  formatter={(value) => {
-                    const n = typeof value === "number" ? value : Number(value);
-                    return [`${n.toFixed(2)}%`, "Freight % of Order"];
-                  }}
-                  cursor={{ fill: "rgba(0,0,0,0.04)" }}
-                />
-                <Bar dataKey="freight_pct" fill={BAR_COLOR} cursor="pointer">
-                  {data.map((entry) => (
-                    <Cell
-                      key={entry.writer}
-                      fill={selected === null || selected === entry.writer ? BAR_COLOR : BAR_DIMMED}
-                      onClick={() => toggleWriter(entry.writer)}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <DashboardCard
+      title="Freight % of Order — by Writer"
+      description="Weighted: total freight $ / total order $. Sorted descending."
+    >
+      {data.length === 0 ? (
+        <EmptyState message="No writers with non-zero freight ratio." />
+      ) : (
+        <div style={{ width: "100%", height: 320 }}>
+          <ResponsiveContainer>
+            <BarChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 40 }}>
+              <CartesianGrid {...gridProps} />
+              <XAxis {...axisProps} dataKey="writer" angle={-30} textAnchor="end" height={60} />
+              <YAxis {...axisProps} tickFormatter={(v: number) => `${v.toFixed(1)}%`} />
+              <Tooltip
+                cursor={BAR_CURSOR}
+                content={({ active, payload, label }) => (
+                  <ChartTooltip
+                    active={active}
+                    payload={payload}
+                    label={label}
+                    formatValue={(v) => `${v.toFixed(2)}%`}
+                    seriesName={() => "Freight % of Order"}
+                  />
+                )}
+              />
+              <Bar {...barProps} dataKey="freight_pct" fill={SERIES[0]} cursor="pointer">
+                {data.map((entry) => (
+                  <Cell
+                    key={entry.writer}
+                    fill={selected === null || selected === entry.writer ? SERIES[0] : DIMMED_BAR}
+                    onClick={() => toggleWriter(entry.writer)}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </DashboardCard>
   );
 }

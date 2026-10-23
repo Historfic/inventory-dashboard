@@ -11,49 +11,63 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardCard } from "@/components/layout/DashboardCard";
+import { EmptyState } from "@/components/layout/EmptyState";
+import { ChartTooltip, renderLegendLabel } from "@/components/charts/ChartTooltip";
 import { aggregateLineCountsByWriter } from "@/lib/line-counts-aggregations";
-import type { LineCountRow } from "@/lib/line-counts-types";
-
-const COLORS = {
-  PO: "#4f46e5",
-  SO: "#1d4ed8",
-  DIR: "#0891b2",
-  TR: "#7c3aed",
-};
+import {
+  axisProps,
+  BAR_CURSOR,
+  gridProps,
+  legendProps,
+  LINE_TYPE_COLORS,
+  stackedBarProps,
+} from "@/lib/chart-theme";
+import { formatCompact, formatInteger } from "@/lib/format";
+import { LINE_TYPES, type LineCountRow } from "@/lib/line-counts-types";
 
 export function LineCountsByWriterChart({ rows }: { rows: LineCountRow[] }) {
   const data = useMemo(() => aggregateLineCountsByWriter(rows), [rows]);
 
   return (
-    <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
-      <CardHeader>
-        <CardTitle>Lines by Writer</CardTitle>
-        <p className="text-xs text-muted-foreground">
-          Stacked by line type. Sorted descending by total.
-        </p>
-      </CardHeader>
-      <CardContent>
-        {data.length === 0 ? (
-          <div className="py-12 text-center text-sm text-gray-500">No data.</div>
-        ) : (
-          <div style={{ width: "100%", height: 360 }}>
-            <ResponsiveContainer>
-              <BarChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 40 }}>
-                <CartesianGrid stroke="#e5e7eb" vertical={false} />
-                <XAxis dataKey="writer" angle={-30} textAnchor="end" height={60} tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip cursor={{ fill: "rgba(0,0,0,0.04)" }} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="PO" stackId="lines" fill={COLORS.PO} />
-                <Bar dataKey="SO" stackId="lines" fill={COLORS.SO} />
-                <Bar dataKey="DIR" stackId="lines" fill={COLORS.DIR} />
-                <Bar dataKey="TR" stackId="lines" fill={COLORS.TR} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <DashboardCard
+      title="Lines by Writer"
+      description="Stacked by line type. Sorted descending by total."
+    >
+      {data.length === 0 ? (
+        <EmptyState message="No data." />
+      ) : (
+        <div style={{ width: "100%", height: 360 }}>
+          <ResponsiveContainer>
+            <BarChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 40 }}>
+              <CartesianGrid {...gridProps} />
+              <XAxis {...axisProps} dataKey="writer" angle={-30} textAnchor="end" height={60} />
+              <YAxis {...axisProps} tickFormatter={formatCompact} />
+              <Tooltip
+                cursor={BAR_CURSOR}
+                content={({ active, payload, label }) => (
+                  <ChartTooltip
+                    active={active}
+                    payload={payload}
+                    label={label}
+                    formatValue={(v) => formatInteger(v)}
+                  />
+                )}
+              />
+              <Legend {...legendProps} formatter={renderLegendLabel} />
+              {LINE_TYPES.map((type) => (
+                <Bar
+                  key={type}
+                  {...stackedBarProps}
+                  dataKey={type}
+                  stackId="lines"
+                  fill={LINE_TYPE_COLORS[type]}
+                />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </DashboardCard>
   );
 }

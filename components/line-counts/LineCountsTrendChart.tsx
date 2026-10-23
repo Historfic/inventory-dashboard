@@ -11,17 +11,20 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardCard } from "@/components/layout/DashboardCard";
+import { EmptyState } from "@/components/layout/EmptyState";
+import { ChartTooltip, renderLegendLabel } from "@/components/charts/ChartTooltip";
 import { LINE_TYPES, type LineCountRow } from "@/lib/line-counts-types";
-import { formatMonthLabel } from "@/lib/format";
+import {
+  axisProps,
+  gridProps,
+  legendProps,
+  LINE_CURSOR,
+  LINE_TYPE_COLORS,
+  stackedAreaProps,
+} from "@/lib/chart-theme";
+import { formatCompact, formatInteger, formatMonthLabel } from "@/lib/format";
 import { monthNameToNumber } from "@/lib/trend";
-
-const COLORS: Record<(typeof LINE_TYPES)[number], string> = {
-  PO: "#1d4ed8",
-  SO: "#0ea5e9",
-  DIR: "#10b981",
-  TR: "#f59e0b",
-};
 
 type TrendPoint = {
   report_date: string;
@@ -59,43 +62,45 @@ export function LineCountsTrendChart({ rows }: { rows: LineCountRow[] }) {
   }, [rows]);
 
   return (
-    <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
-      <CardHeader>
-        <CardTitle>Trend — Lines by Type, all uploads</CardTitle>
-        <p className="text-xs text-muted-foreground">
-          Stacked totals per upload, company-wide (not filtered by the picker above).
-        </p>
-      </CardHeader>
-      <CardContent>
-        {data.length < 2 ? (
-          <div className="py-12 text-center text-sm text-gray-500">
-            Trend will appear after the next upload lands.
-          </div>
-        ) : (
-          <div style={{ width: "100%", height: 320 }}>
-            <ResponsiveContainer>
-              <AreaChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                <CartesianGrid stroke="#e5e7eb" vertical={false} />
-                <XAxis dataKey="report_date" tick={{ fontSize: 12 }} tickFormatter={formatMonthLabel} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip cursor={{ fill: "rgba(0,0,0,0.04)" }} labelFormatter={formatMonthLabel} />
-                <Legend />
-                {LINE_TYPES.map((type) => (
-                  <Area
-                    key={type}
-                    type="monotone"
-                    dataKey={type}
-                    stackId="1"
-                    stroke={COLORS[type]}
-                    fill={COLORS[type]}
-                    fillOpacity={0.6}
+    <DashboardCard
+      title="Trend — Lines by Type, all uploads"
+      description="Stacked totals per upload, company-wide (not filtered by the picker above)."
+    >
+      {data.length < 2 ? (
+        <EmptyState message="Trend will appear after the next upload lands." />
+      ) : (
+        <div style={{ width: "100%", height: 320 }}>
+          <ResponsiveContainer>
+            <AreaChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+              <CartesianGrid {...gridProps} />
+              <XAxis {...axisProps} dataKey="report_date" tickFormatter={formatMonthLabel} />
+              <YAxis {...axisProps} tickFormatter={formatCompact} />
+              <Tooltip
+                cursor={LINE_CURSOR}
+                content={({ active, payload, label }) => (
+                  <ChartTooltip
+                    active={active}
+                    payload={payload}
+                    label={label}
+                    formatLabel={formatMonthLabel}
+                    formatValue={(v) => formatInteger(v)}
                   />
-                ))}
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                )}
+              />
+              <Legend {...legendProps} formatter={renderLegendLabel} />
+              {LINE_TYPES.map((type) => (
+                <Area
+                  key={type}
+                  type="monotone"
+                  dataKey={type}
+                  stackId="1"
+                  {...stackedAreaProps(LINE_TYPE_COLORS[type])}
+                />
+              ))}
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </DashboardCard>
   );
 }
