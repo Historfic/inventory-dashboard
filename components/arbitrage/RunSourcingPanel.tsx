@@ -30,7 +30,7 @@ function Notice({ tone, children }: { tone: "info" | "success" | "warn" | "error
   }[tone];
   const { Icon } = styles;
   return (
-    <p role="status" className={`flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-sm text-foreground`}>
+    <p role="status" className="flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-sm text-foreground">
       <Icon className={`mt-0.5 size-4 flex-none ${styles.icon} ${styles.spin ? "animate-spin" : ""}`} aria-hidden />
       <span>{children}</span>
     </p>

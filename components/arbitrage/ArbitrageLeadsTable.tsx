@@ -89,10 +89,10 @@ function ProductCell({ lead }: { lead: ArbitrageLead }) {
           width={44}
           height={44}
           loading="lazy"
-          className="h-11 w-11 flex-none rounded border border-gray-200 bg-white object-contain"
+          className="h-11 w-11 flex-none rounded border border-border bg-white object-contain"
         />
       ) : (
-        <span className="h-11 w-11 flex-none rounded border border-gray-200 bg-gray-50" aria-hidden />
+        <span className="h-11 w-11 flex-none rounded border border-border bg-muted" aria-hidden />
       )}
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="line-clamp-2 font-medium text-foreground" title={lead.supplier_title ?? undefined}>
