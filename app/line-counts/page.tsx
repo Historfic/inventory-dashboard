@@ -67,7 +67,7 @@ export default function LineCountsPage() {
       subtitle={
         <>
           {loading ? "Loading…" : refreshedLabel}
-          {!loading && data && ` · ${filteredRows.length.toLocaleString()} rows in view`}
+          {!loading && data && `${refreshedLabel ? " · " : ""}${filteredRows.length.toLocaleString()} rows in view`}
         </>
       }
     >
