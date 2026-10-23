@@ -1,6 +1,8 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { DashboardCard } from "@/components/layout/DashboardCard";
+import { cn } from "@/lib/utils";
 
 type Props = {
   availableDates: string[];
@@ -41,50 +43,38 @@ export function UploadPicker({ availableDates, selectedDates, onChange }: Props)
   }
 
   return (
-    <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Uploads</CardTitle>
-        <p className="text-xs text-muted-foreground">
-          Pick one upload, or select multiple to combine totals across reports.
-        </p>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={selectLatest}
-            className="rounded-md border border-sky-300 bg-white px-2.5 py-1 text-xs font-medium text-sky-800 hover:bg-sky-50"
-          >
-            Latest only
-          </button>
-          <button
-            type="button"
-            onClick={selectAll}
-            className="rounded-md border border-sky-300 bg-white px-2.5 py-1 text-xs font-medium text-sky-800 hover:bg-sky-50"
-          >
-            Select all ({availableDates.length})
-          </button>
-          <span className="mx-1 h-4 w-px bg-sky-200" aria-hidden />
-          {availableDates.map((date) => {
-            const selected = selectedSet.has(date);
-            return (
-              <button
-                key={date}
-                type="button"
-                onClick={() => toggle(date)}
-                aria-pressed={selected}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                  selected
-                    ? "bg-sky-700 text-white hover:bg-sky-800"
-                    : "bg-sky-100 text-sky-900 hover:bg-sky-200"
-                }`}
-              >
-                {date}
-              </button>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+    <DashboardCard
+      title="Uploads"
+      description="Pick one upload, or select multiple to combine totals across reports."
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" size="sm" onClick={selectLatest}>
+          Latest only
+        </Button>
+        <Button variant="outline" size="sm" onClick={selectAll}>
+          Select all ({availableDates.length})
+        </Button>
+        <span className="mx-1 h-4 w-px bg-border" aria-hidden />
+        {availableDates.map((date) => {
+          const selected = selectedSet.has(date);
+          return (
+            <button
+              key={date}
+              type="button"
+              onClick={() => toggle(date)}
+              aria-pressed={selected}
+              className={cn(
+                "rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                selected
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "bg-muted text-foreground hover:bg-brand-subtle"
+              )}
+            >
+              {date}
+            </button>
+          );
+        })}
+      </div>
+    </DashboardCard>
   );
 }

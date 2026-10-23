@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/", label: "Days Out" },
@@ -12,12 +13,15 @@ const links = [
   { href: "/arbitrage", label: "Arbitrage" },
 ];
 
+const focusRing =
+  "rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+
 export function Navigation() {
   const pathname = usePathname();
   return (
-    <nav className="border-b border-gray-200 bg-white px-6 py-3 shadow-sm">
-      <div className="flex items-center gap-8">
-        <Link href="/" aria-label="Home">
+    <nav className="border-b border-border bg-card">
+      <div className="flex h-16 items-center gap-10 px-8">
+        <Link href="/" aria-label="Home" className={focusRing}>
           <Image
             src="/PSLogo-dark.svg"
             alt="Plumbing Supply"
@@ -26,18 +30,21 @@ export function Navigation() {
             priority
           />
         </Link>
-        <div className="flex gap-1">
+        <div className="flex h-full items-stretch gap-6">
           {links.map((link) => {
             const active = pathname === link.href;
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`rounded px-3 py-1.5 text-sm font-medium transition-colors ${
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "relative inline-flex items-center text-sm font-medium transition-colors",
+                  focusRing,
                   active
-                    ? "bg-gray-900 text-white"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
+                    ? "text-primary after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full after:bg-brand"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
               >
                 {link.label}
               </Link>

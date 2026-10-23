@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { ClearFiltersButton, FilterChip } from "@/components/filters/FilterChip";
 import { useFilterState } from "@/hooks/useFilterState";
 import { hasActiveFilters } from "@/lib/filters";
 
@@ -45,20 +45,13 @@ export function ActiveFiltersBar() {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs uppercase text-muted-foreground">Active filters:</span>
+      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        Active filters:
+      </span>
       {chips.map((chip) => (
-        <button
-          key={chip.key}
-          onClick={chip.onRemove}
-          className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground hover:bg-secondary/80"
-        >
-          <span>{chip.label}</span>
-          <span aria-hidden>×</span>
-        </button>
+        <FilterChip key={chip.key} label={chip.label} onRemove={chip.onRemove} />
       ))}
-      <Button size="sm" variant="ghost" onClick={clearAll}>
-        Clear all
-      </Button>
+      <ClearFiltersButton onClick={clearAll} className="ml-1" />
     </div>
   );
 }

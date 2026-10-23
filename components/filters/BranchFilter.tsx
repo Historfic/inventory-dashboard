@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -38,12 +39,12 @@ export function BranchFilter({ available, selected, onChange }: Props) {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         className={cn(
-          buttonVariants({ variant: "outline", size: "lg" }),
+          buttonVariants({ variant: "outline", size: "default" }),
           "min-w-[160px] justify-between"
         )}
       >
         <span>{label}</span>
-        <span className="text-muted-foreground text-xs">▾</span>
+        <ChevronDown className="size-4 text-muted-foreground" aria-hidden />
       </PopoverTrigger>
       <PopoverContent className="w-56 p-0" align="start">
         <div className="max-h-72 overflow-y-auto py-2">
