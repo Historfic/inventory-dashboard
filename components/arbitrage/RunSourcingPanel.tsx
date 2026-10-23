@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, XCircle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardCard } from "@/components/layout/DashboardCard";
 import { Button } from "@/components/ui/button";
 import { useArbitrageStatus } from "@/hooks/useArbitrageStatus";
 import {
@@ -16,21 +16,21 @@ type Phase = "idle" | "starting" | "running" | "done" | "error";
 const RUN_TIMEOUT_MS = 4 * 60_000;
 
 const pill = (active: boolean) =>
-  `rounded-full px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-    active ? "bg-sky-700 text-white hover:bg-sky-800" : "bg-sky-100 text-sky-900 hover:bg-sky-200"
+  `rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${
+    active ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-muted text-foreground hover:bg-muted/80"
   }`;
 
 function Notice({ tone, children }: { tone: "info" | "success" | "warn" | "error"; children: React.ReactNode }) {
   const styles = {
-    info: { cls: "bg-sky-50 text-sky-900", Icon: Loader2, spin: true },
-    success: { cls: "bg-emerald-50 text-emerald-800", Icon: CheckCircle2, spin: false },
-    warn: { cls: "bg-amber-50 text-amber-900", Icon: AlertTriangle, spin: false },
-    error: { cls: "bg-red-50 text-red-800", Icon: XCircle, spin: false },
+    info: { icon: "text-primary", Icon: Loader2, spin: true },
+    success: { icon: "text-status-good", Icon: CheckCircle2, spin: false },
+    warn: { icon: "text-status-warning", Icon: AlertTriangle, spin: false },
+    error: { icon: "text-status-critical", Icon: XCircle, spin: false },
   }[tone];
   const { Icon } = styles;
   return (
-    <p role="status" className={`flex items-start gap-2 rounded-md px-3 py-2 text-sm ${styles.cls}`}>
-      <Icon className={`mt-0.5 size-4 flex-none ${styles.spin ? "animate-spin" : ""}`} aria-hidden />
+    <p role="status" className={`flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-sm text-foreground`}>
+      <Icon className={`mt-0.5 size-4 flex-none ${styles.icon} ${styles.spin ? "animate-spin" : ""}`} aria-hidden />
       <span>{children}</span>
     </p>
   );
@@ -105,15 +105,11 @@ export function RunSourcingPanel({ lastRunId, onRunFinished }: Props) {
   }
 
   return (
-    <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Run sourcing</CardTitle>
-        <p className="text-xs text-muted-foreground">
-          Scrapes a PlumbersStock category, looks every UPC up on Amazon through Keepa, and scores it. Re-running a
-          category refreshes prices for leads already found.
-        </p>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+    <DashboardCard
+      title="Run sourcing"
+      description="Scrapes a PlumbersStock category, looks every UPC up on Amazon through Keepa, and scores it. Re-running a category refreshes prices for leads already found."
+    >
+      <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="w-20 text-xs uppercase tracking-wide text-muted-foreground">Category</span>
           {ARBITRAGE_CATEGORIES.map((c) => (
@@ -155,7 +151,7 @@ export function RunSourcingPanel({ lastRunId, onRunFinished }: Props) {
             )}
           </Button>
           <span className="text-xs text-muted-foreground">
-            Keepa tokens <strong className="tabular-nums text-gray-900">{keepa ? keepa.tokensLeft : "—"}</strong>
+            Keepa tokens <strong className="tabular-nums text-foreground">{keepa ? keepa.tokensLeft : "—"}</strong>
             {keepa ? ` · refills ${keepa.refillRate}/min` : ""} · this run needs ≈ {needed} · n8n: {n8nLabel}
           </span>
         </div>
@@ -167,7 +163,7 @@ export function RunSourcingPanel({ lastRunId, onRunFinished }: Props) {
         {message && (
           <Notice tone={phase === "error" ? "error" : phase === "done" ? "success" : "info"}>{message}</Notice>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </DashboardCard>
   );
 }

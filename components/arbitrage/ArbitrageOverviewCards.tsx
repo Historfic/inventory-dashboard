@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatTile } from "@/components/layout/StatTile";
 import { formatMoney, formatPct1, formatTimeAgo } from "@/lib/arbitrage-format";
 import type { ArbitrageLead, SourcingRun } from "@/lib/arbitrage-types";
 
@@ -26,19 +26,7 @@ export function ArbitrageOverviewCards({ leads, runs, now }: Props) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {cards.map((card) => (
-        <Card key={card.label} className="bg-white rounded-lg border border-sky-200 shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {card.label}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold tabular-nums">{card.value}</div>
-            <p className="mt-1 truncate text-xs text-muted-foreground" title={card.sub}>
-              {card.sub}
-            </p>
-          </CardContent>
-        </Card>
+        <StatTile key={card.label} label={card.label} value={card.value} sublabel={card.sub} />
       ))}
     </div>
   );

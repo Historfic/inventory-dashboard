@@ -9,27 +9,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardCard } from "@/components/layout/DashboardCard";
+import { EmptyState } from "@/components/layout/EmptyState";
 import { categoryLabel } from "@/lib/arbitrage-config";
 import { formatCount, formatTimeAgo } from "@/lib/arbitrage-format";
 import type { SourcingRun } from "@/lib/arbitrage-types";
 
 const STATUS = {
-  success: { label: "Success", Icon: CheckCircle2, cls: "bg-emerald-50 text-emerald-700" },
-  partial: { label: "Partial", Icon: AlertTriangle, cls: "bg-amber-50 text-amber-800" },
-  error: { label: "Failed", Icon: XCircle, cls: "bg-red-50 text-red-700" },
+  success: { label: "Success", Icon: CheckCircle2, icon: "text-status-good" },
+  partial: { label: "Partial", Icon: AlertTriangle, icon: "text-status-warning" },
+  error: { label: "Failed", Icon: XCircle, icon: "text-status-critical" },
 } as const;
 
 export function SourcingRunsTable({ runs, now }: { runs: SourcingRun[]; now: number }) {
   return (
-    <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
-      <CardHeader>
-        <CardTitle>Recent runs</CardTitle>
-        <p className="text-xs text-muted-foreground">Last 10 sourcing runs, newest first.</p>
-      </CardHeader>
-      <CardContent>
+    <DashboardCard title="Recent runs" description="Last 10 sourcing runs, newest first.">
         {runs.length === 0 ? (
-          <div className="py-12 text-center text-sm text-gray-500">No runs yet.</div>
+          <EmptyState message="No runs yet." />
         ) : (
           <Table>
             <TableHeader>
@@ -62,10 +58,10 @@ export function SourcingRunsTable({ runs, now }: { runs: SourcingRun[]; now: num
                     </TableCell>
                     <TableCell className="whitespace-normal">
                       <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${s?.cls ?? "bg-gray-100 text-gray-600"}`}
+                        className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground"
                         title={run.error ?? undefined}
                       >
-                        <Icon className="size-3.5" aria-hidden /> {s?.label ?? run.status ?? "Unknown"}
+                        <Icon className={`size-3.5 ${s?.icon ?? "text-muted-foreground"}`} aria-hidden /> {s?.label ?? run.status ?? "Unknown"}
                       </span>
                       {run.error && (
                         <span className="mt-1 block max-w-[360px] truncate text-xs text-muted-foreground" title={run.error}>
@@ -79,7 +75,6 @@ export function SourcingRunsTable({ runs, now }: { runs: SourcingRun[]; now: num
             </TableBody>
           </Table>
         )}
-      </CardContent>
-    </Card>
+    </DashboardCard>
   );
 }

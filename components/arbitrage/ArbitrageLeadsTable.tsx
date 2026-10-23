@@ -3,22 +3,15 @@
 import { useMemo, useState } from "react";
 import {
   ColumnDef,
-  flexRender,
   getCoreRowModel,
   getSortedRowModel,
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
 import { AlertTriangle, CheckCircle2, MinusCircle, XCircle } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardCard } from "@/components/layout/DashboardCard";
+import { EmptyState } from "@/components/layout/EmptyState";
+import { DataTable } from "@/components/table/DataTable";
 import {
   formatCompact,
   formatCount,
@@ -40,31 +33,31 @@ function statusRank(lead: ArbitrageLead): number {
 }
 
 function StatusBadge({ lead }: { lead: ArbitrageLead }) {
-  const base = "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold";
+  const base = "inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground";
   if (lead.is_stale) {
     return (
       <span
-        className={`${base} bg-amber-50 text-amber-800`}
+        className={base}
         title="Keepa couldn't refresh this listing recently; the Amazon price may be out of date."
       >
-        <AlertTriangle className="size-3.5" aria-hidden /> Stale Amazon data
+        <AlertTriangle className="size-3.5 text-status-warning" aria-hidden /> Stale Amazon data
       </span>
     );
   }
   if (lead.buy_box_price == null) {
     return (
-      <span className={`${base} bg-gray-100 text-gray-600`}>
-        <MinusCircle className="size-3.5" aria-hidden /> No Amazon price
+      <span className={base}>
+        <MinusCircle className="size-3.5 text-muted-foreground" aria-hidden /> No Amazon price
       </span>
     );
   }
   return lead.is_profitable ? (
-    <span className={`${base} bg-emerald-50 text-emerald-700`}>
-      <CheckCircle2 className="size-3.5" aria-hidden /> Profitable
+    <span className={base}>
+      <CheckCircle2 className="size-3.5 text-status-good" aria-hidden /> Profitable
     </span>
   ) : (
-    <span className={`${base} bg-red-50 text-red-700`}>
-      <XCircle className="size-3.5" aria-hidden /> Below target
+    <span className={base}>
+      <XCircle className="size-3.5 text-status-critical" aria-hidden /> Below target
     </span>
   );
 }
@@ -72,7 +65,7 @@ function StatusBadge({ lead }: { lead: ArbitrageLead }) {
 // Profit and ROI: green/red by sign, plain grey when the Keepa data is stale.
 function Signed({ value, muted, children }: { value: number | null; muted: boolean; children: React.ReactNode }) {
   const tone =
-    value == null || muted ? "text-gray-500" : value >= 0 ? "font-semibold text-emerald-700" : "text-red-700";
+    value == null || muted ? "text-muted-foreground" : value >= 0 ? "font-semibold text-emerald-700" : "text-red-700";
   return <span className={`tabular-nums ${tone}`}>{children}</span>;
 }
 
@@ -85,9 +78,9 @@ function Sub({ children, warn = false }: { children: React.ReactNode; warn?: boo
 }
 
 function ProductCell({ lead }: { lead: ArbitrageLead }) {
-  const link = "text-sky-700 hover:underline";
+  const link = "text-primary hover:underline";
   return (
-    <div className="flex min-w-[300px] max-w-[420px] gap-3">
+    <div className="flex min-w-[300px] max-w-[420px] gap-3 whitespace-normal">
       {lead.image_url ? (
         // eslint-disable-next-line @next/next/no-img-element -- supplier CDN image, not worth next/image config
         <img
@@ -102,7 +95,7 @@ function ProductCell({ lead }: { lead: ArbitrageLead }) {
         <span className="h-11 w-11 flex-none rounded border border-gray-200 bg-gray-50" aria-hidden />
       )}
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="line-clamp-2 font-medium text-gray-900" title={lead.supplier_title ?? undefined}>
+        <span className="line-clamp-2 font-medium text-foreground" title={lead.supplier_title ?? undefined}>
           {lead.supplier_title ?? lead.amazon_title ?? lead.asin}
         </span>
         <span className="text-xs text-muted-foreground">
@@ -274,73 +267,29 @@ export function ArbitrageLeadsTable({ leads, now }: { leads: ArbitrageLead[]; no
   });
 
   const pill = (active: boolean) =>
-    `rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-      active ? "bg-sky-700 text-white hover:bg-sky-800" : "bg-sky-100 text-sky-900 hover:bg-sky-200"
+    `rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+      active ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-muted text-foreground hover:bg-muted/80"
     }`;
 
   return (
-    <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle>Leads</CardTitle>
-          <div className="flex gap-2" role="group" aria-label="Filter leads">
-            <button type="button" aria-pressed={!profitableOnly} onClick={() => setProfitableOnly(false)} className={pill(!profitableOnly)}>
-              All ({leads.length})
-            </button>
-            <button type="button" aria-pressed={profitableOnly} onClick={() => setProfitableOnly(true)} className={pill(profitableOnly)}>
-              Profitable ({profitableCount})
-            </button>
-          </div>
+    <DashboardCard
+      title="Leads"
+      action={
+        <div className="flex gap-2" role="group" aria-label="Filter leads">
+          <button type="button" aria-pressed={!profitableOnly} onClick={() => setProfitableOnly(false)} className={pill(!profitableOnly)}>
+            All ({leads.length})
+          </button>
+          <button type="button" aria-pressed={profitableOnly} onClick={() => setProfitableOnly(true)} className={pill(profitableOnly)}>
+            Profitable ({profitableCount})
+          </button>
         </div>
-      </CardHeader>
-      <CardContent>
-        {data.length === 0 ? (
-          <div className="py-12 text-center text-sm text-gray-500">
-            No leads match this view yet. Run sourcing on a category to find some.
-          </div>
-        ) : (
-          <Table containerClassName="max-h-[640px]">
-            <TableHeader className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(229_231_235)]">
-              {table.getHeaderGroups().map((hg) => (
-                <TableRow key={hg.id}>
-                  {hg.headers.map((h) => {
-                    const meta = h.column.columnDef.meta as ColumnMeta | undefined;
-                    const canSort = h.column.getCanSort();
-                    const dir = h.column.getIsSorted();
-                    return (
-                      <TableHead
-                        key={h.id}
-                        onClick={canSort ? h.column.getToggleSortingHandler() : undefined}
-                        className={`${canSort ? "cursor-pointer select-none" : ""} ${meta?.numeric ? "text-right" : ""}`}
-                      >
-                        {flexRender(h.column.columnDef.header, h.getContext())}
-                        {dir === "asc" ? " ↑" : dir === "desc" ? " ↓" : ""}
-                      </TableHead>
-                    );
-                  })}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className={row.original.is_profitable ? "bg-emerald-50/60" : undefined}>
-                  {row.getVisibleCells().map((cell) => {
-                    const meta = cell.column.columnDef.meta as ColumnMeta | undefined;
-                    return (
-                      <TableCell
-                        key={cell.id}
-                        className={`align-top ${meta?.numeric ? "text-right" : ""} ${meta?.wrap ? "whitespace-normal" : ""}`}
-                      >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    );
-                  })}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+      }
+    >
+      {data.length === 0 ? (
+        <EmptyState message="No leads match this view yet. Run sourcing on a category to find some." />
+      ) : (
+        <DataTable table={table} maxHeightClass="max-h-[640px]" />
+      )}
+    </DashboardCard>
   );
 }
