@@ -1,0 +1,398 @@
+{
+  "name": "Arbitrage Sourcing Pipeline",
+  "nodes": [
+    {
+      "id": "e6f29e62-d115-e466-66b7-3aa49da1d0bc",
+      "name": "About",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -260
+      ],
+      "parameters": {
+        "width": 760,
+        "height": 200,
+        "content": "## Arbitrage Sourcing Pipeline\nPlumbersStock category → product UPCs → **one bulk Keepa call** → ROI / margin vs Buy Box minus fees → upsert `arbitrage_leads` → log `sourcing_runs`.\n\nTriggered by the inventory dashboard /arbitrage page (POST webhook, header `x-arbitrage-secret`) or **Manual Run**. Body: `{ category_url, max_products, min_roi_pct, min_profit, prep_cost }`.\nKeepa cost ≈ 3 tokens per matched product (1 + 2 for Buy Box). Code lives in github.com/Historfic/inventory-dashboard under `scripts/arbitrage/n8n/code/` — edit there and run `node scripts/arbitrage/n8n/deploy.mjs`."
+      }
+    },
+    {
+      "id": "db268e9a-ec44-d0b1-c849-5c3aa5bb4c8a",
+      "name": "Dashboard Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "arbitrage-sourcing",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "a73d9cd1-9c32-df66-3e24-bade1ad7396e",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "S22eeWZ7nJxnlcFR",
+          "name": "Arbitrage Dashboard Webhook Secret"
+        }
+      }
+    },
+    {
+      "id": "f534c4b7-e830-9719-e1e7-ec243773b77f",
+      "name": "Manual Run",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "9d5048d3-5486-f206-e730-eeb97d610427",
+      "name": "Run Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        100
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Run Config — normalises trigger input (webhook body or manual run) into one\n// config item. Only PlumbersStock URLs are accepted so the webhook can't be\n// used to make n8n fetch arbitrary hosts.\nconst DEFAULTS = {\n  category_url: 'https://www.plumbersstock.com/bathroom/faucets.html',\n  max_products: 10,   // keep small: Keepa plan refills 1 token/min, ~3 tokens per product\n  min_roi_pct: 30,\n  min_profit: 3,\n  prep_cost: 0,       // inbound shipping / prep per unit\n  default_fba_fee: 6.5,\n  default_referral_pct: 15,\n  max_data_age_days: 7, // older Keepa snapshots are flagged stale, never profitable\n};\nconst MAX_PRODUCTS_CAP = 20;\nconst ALLOWED_HOST = 'www.plumbersstock.com';\n\nconst num = (v, fallback) => {\n  const n = Number(v);\n  return Number.isFinite(n) ? n : fallback;\n};\n\ntry {\n  const input = $input.first()?.json ?? {};\n  const fromWebhook = input.body !== undefined || input.headers !== undefined;\n  const body = (fromWebhook ? input.body : input) || {};\n\n  // The Code-node sandbox has no global URL class, so parse by hand.\n  const raw = String(body.category_url || DEFAULTS.category_url).trim();\n  const match = /^https:\\/\\/([^/?#:@]+)(\\/[^?#]*)?/i.exec(raw);\n  if (!match || match[1].toLowerCase() !== ALLOWED_HOST) {\n    throw new Error(`category_url must be an https://${ALLOWED_HOST} page`);\n  }\n  const categoryUrl = `https://${ALLOWED_HOST}${match[2] || '/'}`;\n\n  return [{\n    json: {\n      trigger: fromWebhook ? (body.trigger || 'dashboard') : 'manual',\n      category_url: categoryUrl,\n      max_products: Math.min(Math.max(Math.round(num(body.max_products, DEFAULTS.max_products)), 1), MAX_PRODUCTS_CAP),\n      min_roi_pct: num(body.min_roi_pct, DEFAULTS.min_roi_pct),\n      min_profit: num(body.min_profit, DEFAULTS.min_profit),\n      prep_cost: num(body.prep_cost, DEFAULTS.prep_cost),\n      default_fba_fee: DEFAULTS.default_fba_fee,\n      default_referral_pct: DEFAULTS.default_referral_pct,\n      max_data_age_days: num(body.max_data_age_days, DEFAULTS.max_data_age_days),\n      started_at: new Date().toISOString(),\n      config_error: null,\n    },\n  }];\n} catch (error) {\n  // Fall back to defaults but record why, so the run log shows the problem.\n  return [{\n    json: {\n      ...DEFAULTS,\n      trigger: 'invalid',\n      started_at: new Date().toISOString(),\n      config_error: error.message,\n    },\n  }];\n}\n"
+      }
+    },
+    {
+      "id": "4d41553c-21b5-33cc-aee2-2e87e3e470c2",
+      "name": "Scrape Supplier Catalog",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        100
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Scrape Supplier Catalog — reads the category page's schema.org ItemList,\n// then each product page's schema.org Product block (UPC, MPN, price, stock).\n// Requests are sequential with a pause between them to stay polite.\n// Identify honestly as a bot: Cloudflare 403s a Chrome UA coming from Node's\n// TLS stack, while an honest UA is allowed (robots.txt: User-agent * Allow /).\nconst USER_AGENT = 'ArbitrageSourcingBot/1.0 (low-volume product sourcing)';\nconst DELAY_MS = 800;\n\nconst cfg = $input.first().json;\n\nconst httpGet = async (url) => {\n  const opts = { method: 'GET', url, headers: { 'User-Agent': USER_AGENT, Accept: 'text/html' }, timeout: 30000, json: false };\n  if (typeof this !== 'undefined' && this?.helpers?.httpRequest) return this.helpers.httpRequest(opts);\n  if (typeof $helpers !== 'undefined') return $helpers.httpRequest(opts);\n  throw new Error('No HTTP helper available in this Code node');\n};\nconst sleep = (ms) => (typeof setTimeout === 'function' ? new Promise((r) => setTimeout(r, ms)) : Promise.resolve());\n\nconst ldBlocks = (html) => {\n  const out = [];\n  const re = /<script[^>]*application\\/ld\\+json[^>]*>([\\s\\S]*?)<\\/script>/gi;\n  let m;\n  while ((m = re.exec(html)) !== null) {\n    try {\n      const doc = JSON.parse(m[1].trim());\n      const nodes = Array.isArray(doc) ? doc : (doc['@graph'] || [doc]);\n      out.push(...nodes);\n    } catch (_) { /* skip malformed block */ }\n  }\n  return out;\n};\n\nconst normaliseUpc = (v) => {\n  let digits = String(v ?? '').replace(/\\D/g, '');\n  if (digits.length === 11) digits = `0${digits}`; // site sometimes drops the UPC-A leading zero\n  return digits.length >= 8 && digits.length <= 14 ? digits : null;\n};\n\nconst parseProduct = (html, url) => {\n  const product = ldBlocks(html).find((n) => n['@type'] === 'Product');\n  if (!product) return null;\n  const offers = Array.isArray(product.offers) ? product.offers[0] : (product.offers || {});\n  const price = Number(offers.lowPrice ?? offers.price);\n  const availability = String(offers.availability || '').split('/').pop() || null;\n  const image = Array.isArray(product.image) ? product.image[0] : product.image;\n  return {\n    supplier_url: url,\n    supplier_title: product.name || null,\n    supplier_sku: product.sku ? String(product.sku) : null,\n    supplier_mpn: product.mpn ? String(product.mpn) : null,\n    upc: normaliseUpc(product.gtin12 || product.gtin || product.gtin13 || product.gtin14),\n    cost_price: Number.isFinite(price) && price > 0 ? price : null,\n    stock_status: availability,\n    in_stock: availability ? /InStock|LimitedAvailability/i.test(availability) : null,\n    image_url: image || null,\n  };\n};\n\nconst products = [];\nconst errors = [];\n\nif (!cfg.config_error) {\n  try {\n    const categoryHtml = await httpGet(cfg.category_url);\n    const list = ldBlocks(categoryHtml).find((n) => n['@type'] === 'CollectionPage')?.mainEntity\n      || ldBlocks(categoryHtml).find((n) => n['@type'] === 'ItemList');\n    let urls = (list?.itemListElement || []).map((el) => el.url || el.item?.url || el.item).filter(Boolean);\n    urls = [...new Set(urls)].slice(0, cfg.max_products);\n    if (urls.length === 0) errors.push('No product list found on category page');\n\n    for (const url of urls) {\n      try {\n        await sleep(DELAY_MS);\n        const parsed = parseProduct(await httpGet(url), url);\n        if (parsed) products.push(parsed);\n        else errors.push(`No Product data: ${url}`);\n      } catch (error) {\n        errors.push(`${url}: ${error.message}`);\n      }\n    }\n  } catch (error) {\n    errors.push(`Category fetch failed: ${error.message}`);\n  }\n}\n\nconst withUpc = products.filter((p) => p.upc && p.cost_price);\nconst upcs = [...new Set(withUpc.map((p) => p.upc))].slice(0, 100); // Keepa accepts up to 100 codes per call\n\nreturn [{\n  json: {\n    products,\n    products_scraped: products.length,\n    products_with_upc: withUpc.length,\n    upc_count: upcs.length,\n    upc_csv: upcs.join(','),\n    scrape_errors: cfg.config_error ? [cfg.config_error] : errors,\n  },\n}];\n"
+      }
+    },
+    {
+      "id": "30579f9d-0883-f8a4-004f-31cee1f0fd6f",
+      "name": "Has UPCs?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "2da9fab4-a2ef-d835-113c-e023cd3f0604",
+              "leftValue": "={{ $json.upc_count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "29e62d92-36fc-e950-c588-9d97b80b809d",
+      "name": "Keepa Product Lookup",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "url": "https://api.keepa.com/product",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "1"
+            },
+            {
+              "name": "code",
+              "value": "={{ $json.upc_csv }}"
+            },
+            {
+              "name": "stats",
+              "value": "90"
+            },
+            {
+              "name": "buybox",
+              "value": "1"
+            },
+            {
+              "name": "history",
+              "value": "0"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "iXLBLxYJvAmZyo7Z",
+          "name": "Keepa API - Arbitrage"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "65275341-55a7-49f5-49a2-b8fa39309bb7",
+      "name": "Arbitrage Sanitizer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        100
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Arbitrage Sanitizer — joins supplier products with the bulk Keepa response,\n// cleans Keepa sentinel values (-1 = no data, -2 = not applicable) to null,\n// and computes fees, net profit, ROI and margin per (UPC, ASIN).\n// Output: one item { rows: [...upsert rows], run: {...run log} }.\nconst KEEPA_TIME_OFFSET_MIN = 21564000; // Keepa minutes -> unix minutes\nconst IDX = { AMAZON: 0, NEW: 1, SALES_RANK: 3, COUNT_NEW: 11, BUY_BOX_SHIPPING: 18 };\nconst MIN_REFERRAL_FEE = 0.30;\n\nconst round2 = (n) => Math.round(n * 100) / 100;\nconst clean = (v) => {\n  if (v === undefined || v === null || v === -1 || v === -2 || v === '') return null;\n  const n = Number(v);\n  return Number.isFinite(n) ? n : null;\n};\nconst cents = (v) => { const c = clean(v); return c === null ? null : round2(c / 100); };\nconst at = (arr, i) => (Array.isArray(arr) ? arr[i] : undefined);\nconst bool = (v) => (typeof v === 'boolean' ? v : null);\nconst stripZeros = (code) => String(code).replace(/^0+/, '');\n\n// Accepts nested Keepa JSON or flat-mapped keys like json[\"0.stats.current\"].\nconst unflatten = (obj) => {\n  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;\n  if (!Object.keys(obj).some((k) => k.includes('.'))) return obj;\n  const root = {};\n  for (const [key, value] of Object.entries(obj)) {\n    const parts = key.split('.');\n    let node = root;\n    parts.forEach((part, i) => {\n      if (i === parts.length - 1) node[part] = value;\n      else node = node[part] = node[part] && typeof node[part] === 'object' ? node[part] : {};\n    });\n  }\n  const toArrays = (n) => {\n    if (!n || typeof n !== 'object') return n;\n    if (Array.isArray(n)) return n.map(toArrays);\n    const keys = Object.keys(n);\n    for (const k of keys) n[k] = toArrays(n[k]);\n    return keys.length && keys.every((k) => /^\\d+$/.test(k)) ? keys.sort((a, b) => a - b).map((k) => n[k]) : n;\n  };\n  return toArrays(root);\n};\n\nconst keepaProductsFrom = (payload) => {\n  let data = payload;\n  if (typeof data === 'string') { try { data = JSON.parse(data); } catch (_) { return []; } }\n  data = unflatten(data);\n  if (Array.isArray(data?.products)) return data.products.map(unflatten);\n  if (Array.isArray(data)) return data.map(unflatten);\n  return [];\n};\n\nconst cfg = $('Run Config').first().json;\nconst scrape = $('Scrape Supplier Catalog').first().json;\nconst errors = [...(scrape.scrape_errors || [])];\nconst now = new Date().toISOString();\n\n// ---- Keepa response -------------------------------------------------------\nlet keepaProducts = [];\nlet tokensLeft = null;\nlet tokensConsumed = null;\ntry {\n  let keepaNode = null;\n  try { keepaNode = $('Keepa Product Lookup'); } catch (_) { keepaNode = null; }\n  const executed = keepaNode && keepaNode.isExecuted !== false;\n  if (scrape.upc_count > 0 && executed) {\n    const res = keepaNode.first().json || {};\n    const status = Number(res.statusCode ?? 200);\n    let body = res.body !== undefined ? res.body : res;\n    if (typeof body === 'string') { try { body = JSON.parse(body); } catch (_) { /* keep string */ } }\n    tokensLeft = Number.isFinite(body?.tokensLeft) ? body.tokensLeft : null; // can legitimately be negative\n    tokensConsumed = Number.isFinite(body?.tokensConsumed) ? body.tokensConsumed : null;\n\n    if (res.error) {\n      const msg = res.error.message || JSON.stringify(res.error);\n      errors.push(/credential|auth|key/i.test(msg) ? `Keepa API key missing or invalid: ${msg}` : `Keepa request failed: ${msg}`);\n    } else if (status === 429) {\n      errors.push(`Keepa out of tokens (tokensLeft ${body?.tokensLeft}, refill in ${Math.round((body?.refillIn || 0) / 1000)}s)`);\n    } else if (status >= 400 || body?.error) {\n      errors.push(`Keepa HTTP ${status}: ${JSON.stringify(body?.error || body).slice(0, 300)}`);\n    } else {\n      keepaProducts = keepaProductsFrom(body);\n    }\n  }\n} catch (error) {\n  errors.push(`Keepa parse error: ${error.message}`);\n}\n\n// ---- Join + economics -----------------------------------------------------\nconst supplierByUpc = new Map(\n  (scrape.products || []).filter((p) => p.upc && p.cost_price).map((p) => [stripZeros(p.upc), p]),\n);\nconst queried = (scrape.upc_csv || '').split(',').filter(Boolean);\n\nconst rowsByKey = new Map();\nfor (const kp of keepaProducts) {\n  try {\n    if (!kp?.asin) continue;\n    const codes = [...(kp.upcList || []), ...(kp.eanList || [])].map(stripZeros);\n    let supplier = codes.map((c) => supplierByUpc.get(c)).find(Boolean);\n    if (!supplier && queried.length === 1) supplier = supplierByUpc.get(stripZeros(queried[0]));\n    if (!supplier) continue;\n\n    const stats = kp.stats || {};\n    let price = null;\n    let priceSource = null;\n    const bb = clean(stats.buyBoxPrice);\n    if (bb !== null) {\n      price = round2((bb + (clean(stats.buyBoxShipping) ?? 0)) / 100);\n      priceSource = 'buy_box';\n    } else if (cents(at(stats.current, IDX.BUY_BOX_SHIPPING)) !== null) {\n      price = cents(at(stats.current, IDX.BUY_BOX_SHIPPING));\n      priceSource = 'buy_box';\n    } else if (cents(at(stats.current, IDX.NEW)) !== null) {\n      price = cents(at(stats.current, IDX.NEW));\n      priceSource = 'new';\n    } else if (cents(at(stats.current, IDX.AMAZON)) !== null) {\n      price = cents(at(stats.current, IDX.AMAZON));\n      priceSource = 'amazon';\n    }\n\n    const referralPct = clean(kp.referralFeePercentage) ?? clean(kp.referralFeePercent) ?? cfg.default_referral_pct;\n    const keepaFbaFee = cents(kp.fbaFees?.pickAndPackFee);\n    const fbaFee = keepaFbaFee ?? cfg.default_fba_fee;\n    const cost = supplier.cost_price;\n\n    let referralFee = null; let totalFees = null; let netProfit = null; let roi = null; let margin = null;\n    if (price !== null) {\n      referralFee = round2(Math.max((price * referralPct) / 100, MIN_REFERRAL_FEE));\n      totalFees = round2(referralFee + fbaFee + cfg.prep_cost);\n      netProfit = round2(price - totalFees - cost);\n      roi = round2((netProfit / cost) * 100);\n      margin = round2((netProfit / price) * 100);\n    }\n\n    // Keepa serves its last snapshot when it can't refresh a listing, so an\n    // old lastUpdate usually means a dead ASIN with a leftover Buy Box.\n    const lastUpdate = clean(kp.lastUpdate);\n    const lastUpdateMs = lastUpdate !== null ? (lastUpdate + KEEPA_TIME_OFFSET_MIN) * 60000 : null;\n    const maxAgeDays = cfg.max_data_age_days ?? 7;\n    const isStale = lastUpdateMs === null || Date.now() - lastUpdateMs > maxAgeDays * 86400000;\n\n    const row = {\n      upc: supplier.upc,\n      asin: kp.asin,\n      supplier: 'plumbersstock',\n      supplier_sku: supplier.supplier_sku,\n      supplier_mpn: supplier.supplier_mpn,\n      supplier_title: supplier.supplier_title,\n      supplier_url: supplier.supplier_url,\n      image_url: supplier.image_url,\n      cost_price: cost,\n      in_stock: supplier.in_stock,\n      stock_status: supplier.stock_status,\n      amazon_title: kp.title || null,\n      brand: kp.brand || null,\n      sales_category: kp.categoryTree?.[0]?.name ?? null,\n      buy_box_price: price,\n      price_source: priceSource,\n      buy_box_is_fba: bool(stats.buyBoxIsFBA),\n      buy_box_is_amazon: bool(stats.buyBoxIsAmazon),\n      bsr_current: clean(at(stats.current, IDX.SALES_RANK)),\n      bsr_avg_30: clean(at(stats.avg30, IDX.SALES_RANK)),\n      bsr_avg_90: clean(at(stats.avg90, IDX.SALES_RANK)),\n      new_offer_count: clean(at(stats.current, IDX.COUNT_NEW)),\n      fba_offer_count: clean(stats.offerCountFBA),\n      referral_fee_pct: referralPct,\n      referral_fee: referralFee,\n      fba_fee: fbaFee,\n      fba_fee_estimated: keepaFbaFee === null,\n      prep_cost: cfg.prep_cost,\n      total_fees: totalFees,\n      net_profit: netProfit,\n      roi_pct: roi,\n      net_margin_pct: margin,\n      is_profitable: !isStale && roi !== null && roi >= cfg.min_roi_pct && netProfit >= cfg.min_profit,\n      is_stale: isStale,\n      keepa_last_update: lastUpdateMs !== null ? new Date(lastUpdateMs).toISOString() : null,\n      updated_at: now,\n    };\n    rowsByKey.set(`${row.upc}|${row.asin}`, row);\n  } catch (error) {\n    errors.push(`ASIN ${kp?.asin}: ${error.message}`);\n  }\n}\n\nconst rows = [...rowsByKey.values()];\nconst profitable = rows.filter((r) => r.is_profitable).length;\nconst fatal = rows.length === 0 && errors.length > 0;\n\nreturn [{\n  json: {\n    rows,\n    run: {\n      started_at: cfg.started_at,\n      trigger: cfg.trigger,\n      category_url: cfg.category_url,\n      products_scraped: scrape.products_scraped ?? 0,\n      products_with_upc: scrape.products_with_upc ?? 0,\n      asins_matched: rows.length,\n      profitable,\n      keepa_tokens_consumed: tokensConsumed,\n      keepa_tokens_left: tokensLeft,\n      status: fatal ? 'error' : errors.length ? 'partial' : 'success',\n      error: errors.length ? errors.join(' | ').slice(0, 2000) : null,\n    },\n  },\n}];\n"
+      }
+    },
+    {
+      "id": "51abe953-b78b-ddd1-c609-d68285307391",
+      "name": "Upsert Leads to Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://mvsjswojnwhokqpkgxfq.supabase.co/rest/v1/arbitrage_leads?on_conflict=upc,asin",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.rows) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8RhEBDOfTdOr54Vw",
+          "name": "Supabase - Arbitrage Engine"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "1dc49eb5-1f49-a282-be44-a401958316a1",
+      "name": "Finalize Run Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        100
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Finalize Run Log — folds the Supabase upsert result into the run summary.\nconst run = { ...$('Arbitrage Sanitizer').first().json.run };\ntry {\n  const upsert = $input.first().json || {};\n  const status = Number(upsert.statusCode ?? 200);\n  if (upsert.error || status >= 300) {\n    const detail = upsert.error?.message || JSON.stringify(upsert.body ?? upsert).slice(0, 300);\n    run.status = 'error';\n    run.error = [run.error, `Supabase upsert failed (${status}): ${detail}`].filter(Boolean).join(' | ');\n  }\n} catch (error) {\n  run.status = 'error';\n  run.error = [run.error, `Finalize error: ${error.message}`].filter(Boolean).join(' | ');\n}\nrun.finished_at = new Date().toISOString();\nreturn [{ json: { run } }];\n"
+      }
+    },
+    {
+      "id": "f2a49fb3-8df6-be4a-8335-7c2dcb04649e",
+      "name": "Log Run to Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://mvsjswojnwhokqpkgxfq.supabase.co/rest/v1/sourcing_runs",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.run) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8RhEBDOfTdOr54Vw",
+          "name": "Supabase - Arbitrage Engine"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Dashboard Webhook": {
+      "main": [
+        [
+          {
+            "node": "Run Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Run": {
+      "main": [
+        [
+          {
+            "node": "Run Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Config": {
+      "main": [
+        [
+          {
+            "node": "Scrape Supplier Catalog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Supplier Catalog": {
+      "main": [
+        [
+          {
+            "node": "Has UPCs?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has UPCs?": {
+      "main": [
+        [
+          {
+            "node": "Keepa Product Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Arbitrage Sanitizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keepa Product Lookup": {
+      "main": [
+        [
+          {
+            "node": "Arbitrage Sanitizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Arbitrage Sanitizer": {
+      "main": [
+        [
+          {
+            "node": "Upsert Leads to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Leads to Supabase": {
+      "main": [
+        [
+          {
+            "node": "Finalize Run Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize Run Log": {
+      "main": [
+        [
+          {
+            "node": "Log Run to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
