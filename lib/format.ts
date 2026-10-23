@@ -38,3 +38,13 @@ export function formatMonthLabel(reportDate: unknown): string {
   const name = MONTH_NAMES[monthIdx];
   return name ? `${name} ${year}` : String(reportDate);
 }
+
+const compactFormatter = new Intl.NumberFormat("en-US", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+/** 1500 -> "1.5K", 150000 -> "150K". Chart axis ticks only — table values keep their exact formatters. */
+export function formatCompact(value: number): string {
+  return compactFormatter.format(value);
+}
