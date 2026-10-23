@@ -41,6 +41,7 @@ export function Navigation() {
                 className={cn(
                   "relative inline-flex items-center text-sm font-medium transition-colors",
                   focusRing,
+                  "focus-visible:ring-inset focus-visible:ring-offset-0",
                   active
                     ? "text-primary after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full after:bg-brand"
                     : "text-muted-foreground hover:text-foreground"
