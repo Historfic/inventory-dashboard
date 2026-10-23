@@ -143,3 +143,13 @@
     @apply font-sans;
   }
 }
+
+/* Recharts leaves a focus ring after a mouse click on a series; keep it for keyboard focus only. */
+/* (outside :root, @theme and .dark on purpose) */
+.recharts-wrapper :focus:not(:focus-visible) {
+  outline: none;
+}
+.recharts-wrapper :focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}

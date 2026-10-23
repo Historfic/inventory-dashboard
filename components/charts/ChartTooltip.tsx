@@ -34,11 +34,11 @@ export function ChartTooltip({ active, payload, label, formatValue, formatLabel,
         </p>
       )}
       <ul className="flex flex-col gap-1">
-        {payload.map((entry) => {
+        {payload.map((entry, index) => {
           const name = String(entry.name ?? entry.dataKey ?? "");
-          const value = typeof entry.value === "number" ? entry.value : Number(entry.value);
+          const value = entry.value == null ? NaN : Number(entry.value);
           return (
-            <li key={name} className="flex items-center gap-2">
+            <li key={`${String(entry.dataKey ?? name)}-${index}`} className="flex items-center gap-2">
               <span
                 className="size-2 shrink-0 rounded-full"
                 style={{ backgroundColor: entry.color }}
@@ -46,7 +46,7 @@ export function ChartTooltip({ active, payload, label, formatValue, formatLabel,
               />
               <span className="text-muted-foreground">{seriesName ? seriesName(name) : name}</span>
               <span className="ml-auto pl-3 font-medium text-foreground tabular-nums">
-                {formatValue ? formatValue(value, name) : value.toLocaleString()}
+                {!Number.isFinite(value) ? "—" : formatValue ? formatValue(value, name) : value.toLocaleString()}
               </span>
             </li>
           );

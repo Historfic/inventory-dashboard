@@ -52,6 +52,8 @@ export const legendProps = {
   iconType: "circle" as const,
   iconSize: 8,
   wrapperStyle: { fontSize: 12 },
+  // Recharts sorts legend items by value (alphabetical) unless told not to: keep render order.
+  itemSorter: null,
 };
 
 /** Lines: 2px, round caps, no resting dots; the hover dot is r=4 with a 2px surface ring. */
