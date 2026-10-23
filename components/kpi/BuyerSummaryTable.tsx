@@ -3,21 +3,14 @@
 import { useMemo, useState } from "react";
 import {
   ColumnDef,
-  flexRender,
   getCoreRowModel,
   getSortedRowModel,
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardCard } from "@/components/layout/DashboardCard";
+import { EmptyState } from "@/components/layout/EmptyState";
+import { DataTable } from "@/components/table/DataTable";
 import { aggregateByBuyer, type BuyerAggregate } from "@/lib/aggregations";
 import { useFilterState } from "@/hooks/useFilterState";
 import { formatStockoutPct } from "@/lib/format";
@@ -55,58 +48,17 @@ export function BuyerSummaryTable({ rows }: { rows: InventoryRow[] }) {
   });
 
   return (
-    <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
-      <CardHeader>
-        <CardTitle>Buyer Summary</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {data.length === 0 ? (
-          <div className="py-12 text-center text-sm text-gray-500">
-            No data matches the current filters.
-          </div>
-        ) : (
-          <Table containerClassName="max-h-[480px]">
-            <TableHeader className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(229_231_235)]">
-              {table.getHeaderGroups().map((hg) => (
-                <TableRow key={hg.id}>
-                  {hg.headers.map((h) => {
-                    const isNumeric = (h.column.columnDef.meta as { numeric?: boolean } | undefined)?.numeric;
-                    const dir = h.column.getIsSorted();
-                    return (
-                      <TableHead
-                        key={h.id}
-                        onClick={h.column.getToggleSortingHandler()}
-                        className={`cursor-pointer select-none ${isNumeric ? "text-right" : ""}`}
-                      >
-                        {flexRender(h.column.columnDef.header, h.getContext())}
-                        {dir === "asc" ? " ↑" : dir === "desc" ? " ↓" : ""}
-                      </TableHead>
-                    );
-                  })}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.map((row) => {
-                const selected = filters.buyerSelection === row.original.buyer;
-                return (
-                  <TableRow
-                    key={row.id}
-                    onClick={() => toggleBuyer(row.original.buyer)}
-                    className={`cursor-pointer ${selected ? "bg-muted" : ""}`}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className={(cell.column.columnDef.meta as { numeric?: boolean } | undefined)?.numeric ? "text-right" : ""}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+    <DashboardCard title="Buyer Summary">
+      {data.length === 0 ? (
+        <EmptyState message="No data matches the current filters." />
+      ) : (
+        <DataTable
+          table={table}
+          maxHeightClass="max-h-[480px]"
+          onRowClick={(r) => toggleBuyer(r.buyer)}
+          isRowSelected={(r) => filters.buyerSelection === r.buyer}
+        />
+      )}
+    </DashboardCard>
   );
 }

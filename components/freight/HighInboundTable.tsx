@@ -3,21 +3,14 @@
 import { useMemo, useState } from "react";
 import {
   ColumnDef,
-  flexRender,
   getCoreRowModel,
   getSortedRowModel,
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardCard } from "@/components/layout/DashboardCard";
+import { EmptyState } from "@/components/layout/EmptyState";
+import { DataTable } from "@/components/table/DataTable";
 import { formatDollars } from "@/lib/format";
 import { useFreightFilterState } from "@/hooks/useFreightFilterState";
 import type { InboundFreightRow } from "@/lib/inbound-freight-types";
@@ -77,62 +70,29 @@ export function HighInboundTable({ rows }: { rows: InboundFreightRow[] }) {
   });
 
   return (
-    <Card className="bg-white rounded-lg border border-sky-200 shadow-md">
-      <CardHeader>
-        <CardTitle>
-          {vendorFocused
-            ? `POs with freight — ${filters.vendorSelection}`
-            : `High Inbound % Orders (≥ ${THRESHOLD}%)`}
-        </CardTitle>
-        <p className="text-xs text-muted-foreground">
-          {vendorFocused
-            ? "All line items from the selected vendor that incurred freight cost."
-            : `Line items where freight is at least ${THRESHOLD}% of the order — worth reviewing for cost.`}
-        </p>
-      </CardHeader>
-      <CardContent>
-        {data.length === 0 ? (
-          <div className="py-8 text-center text-sm text-gray-500">
-            {vendorFocused
+    <DashboardCard
+      title={
+        vendorFocused
+          ? `POs with freight — ${filters.vendorSelection}`
+          : `High Inbound % Orders (≥ ${THRESHOLD}%)`
+      }
+      description={
+        vendorFocused
+          ? "All line items from the selected vendor that incurred freight cost."
+          : `Line items where freight is at least ${THRESHOLD}% of the order — worth reviewing for cost.`
+      }
+    >
+      {data.length === 0 ? (
+        <EmptyState
+          message={
+            vendorFocused
               ? "No freight-bearing POs for this vendor in the current view."
-              : `No orders cross the ${THRESHOLD}% threshold.`}
-          </div>
-        ) : (
-          <Table containerClassName="max-h-[480px]">
-            <TableHeader className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(229_231_235)]">
-                {table.getHeaderGroups().map((hg) => (
-                  <TableRow key={hg.id}>
-                    {hg.headers.map((h) => {
-                      const isNumeric = (h.column.columnDef.meta as { numeric?: boolean } | undefined)?.numeric;
-                      const dir = h.column.getIsSorted();
-                      return (
-                        <TableHead
-                          key={h.id}
-                          onClick={h.column.getToggleSortingHandler()}
-                          className={`cursor-pointer select-none ${isNumeric ? "text-right" : ""}`}
-                        >
-                          {flexRender(h.column.columnDef.header, h.getContext())}
-                          {dir === "asc" ? " ↑" : dir === "desc" ? " ↓" : ""}
-                        </TableHead>
-                      );
-                    })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className={(cell.column.columnDef.meta as { numeric?: boolean } | undefined)?.numeric ? "text-right" : ""}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+              : `No orders cross the ${THRESHOLD}% threshold.`
+          }
+        />
+      ) : (
+        <DataTable table={table} maxHeightClass="max-h-[480px]" />
+      )}
+    </DashboardCard>
   );
 }
